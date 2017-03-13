@@ -10,7 +10,7 @@ public class BaitsTable implements IDatabaseTable {
 
     public static String TABLE_NAME = "Baits";
 
-    public static String COL_BAIT_ID = "FisherId";
+    public static String COL_BAIT_ID = "BaitId";
     public static String COLSPEC_BAIT_ID = "TEXT UNIQUE";
 
     public static String COL_NAME = "Name";

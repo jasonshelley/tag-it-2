@@ -8,9 +8,6 @@ import android.database.sqlite.SQLiteDatabase;
 
 public class UsersTable implements IDatabaseTable {
 
-    private final static String COL_FMT = "$1 $2, ";
-    private final static String COL_FMT_LAST = "$1 $2";
-
     public static String TABLE_NAME = "Users";
 
     public static String COL_USER_ID = "UserId";

@@ -1,0 +1,10 @@
+package com.jso.tagit2.models;
+
+/**
+ * Created by JSHELLEY on 8/03/2017.
+ */
+
+public class Bait extends BaseObject {
+    public String baitId;
+    public String name;
+}

@@ -44,22 +44,26 @@ public class CatchesTable implements IDatabaseTable {
     public static String COL_IMAGE_PATH = "ImagePath";
     public static String COLSPEC_IMAGE_PATH = "TEXT";
 
+    public static String COL_TIMESTAMP = "Timestamp";
+    public static String COLSPEC_TIMETAMP = "INTEGER";
+
     public static String TABLE_CREATE = "CREATE TABLE " + TABLE_NAME + " ( "
             + SQL_COL_ID + ", "
             + String.format(COL_FMT, COL_CATCH_ID, COLSPEC_CATCH_ID)
             + String.format(COL_FMT, COL_FISHER_ID, COLSPEC_FISHER_ID)
-            + String.format(FK_FMT, COL_FISHER_ID, FishersTable.TABLE_NAME)
             + String.format(COL_FMT, COL_BAIT_ID, COLSPEC_BAIT_ID)
-            + String.format(FK_FMT, COL_BAIT_ID, BaitsTable.TABLE_NAME)
             + String.format(COL_FMT, COL_SPECIES_ID, COLSPEC_SPECIES_ID)
-            + String.format(FK_FMT, COL_SPECIES_ID, SpeciesTable.TABLE_NAME)
             + String.format(COL_FMT, COL_LATITUDE, COLSPEC_LATITUDE)
             + String.format(COL_FMT, COL_LONGITUDE, COLSPEC_LONGITUDE)
             + String.format(COL_FMT, COL_LENGTH, COLSPEC_LENGTH)
             + String.format(COL_FMT, COL_WEIGHT, COLSPEC_WEIGHT)
             + String.format(COL_FMT, COL_LOCATION_DESC, COLSPEC_LOCATION_DESC)
             + String.format(COL_FMT, COL_THUMBNAIL_PATH, COLSPEC_THUMBNAIL_PATH)
-            + String.format(COL_FMT_LAST, COL_IMAGE_PATH, COLSPEC_IMAGE_PATH)
+            + String.format(COL_FMT, COL_IMAGE_PATH, COLSPEC_IMAGE_PATH)
+            + String.format(COL_FMT, COL_TIMESTAMP, COLSPEC_TIMETAMP)  // added in version 2
+            + String.format(FK_FMT, COL_FISHER_ID, FishersTable.TABLE_NAME)
+            + String.format(FK_FMT, COL_BAIT_ID, BaitsTable.TABLE_NAME)
+            + String.format(FK_FMT_LAST, COL_SPECIES_ID, SpeciesTable.TABLE_NAME)
             + ")";
 
     @Override
@@ -69,6 +73,7 @@ public class CatchesTable implements IDatabaseTable {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
+        if (oldVersion < 2)
+            db.execSQL("ALTER " + TABLE_NAME + " ADD " + COL_TIMESTAMP + " " + COLSPEC_TIMETAMP);
     }
 }

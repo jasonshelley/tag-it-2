@@ -32,7 +32,7 @@ public class SpeciesTable implements IDatabaseTable {
             + String.format(COL_FMT, COL_SPECIES_ID, COLSPEC_SPECIES_ID)
             + String.format(COL_FMT, COL_BAG_LIMIT, COLSPEC_BAG_LIMIT)
             + String.format(COL_FMT, COL_SIZE_MIN, COLSPEC_SIZE_MIN)
-            + String.format(COL_FMT, COL_SIZE_MIN, COLSPEC_SIZE_MAX)
+            + String.format(COL_FMT, COL_SIZE_MAX, COLSPEC_SIZE_MAX)
             + String.format(COL_FMT_LAST, COL_NAME, COLSPEC_NAME)
             + ")";
 

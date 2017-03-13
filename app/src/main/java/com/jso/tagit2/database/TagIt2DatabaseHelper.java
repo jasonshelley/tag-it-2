@@ -1,6 +1,7 @@
 package com.jso.tagit2.database;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
@@ -10,16 +11,15 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class TagIt2DatabaseHelper extends SQLiteOpenHelper {
 
-    public final static String URI_BASE = "com.jso.tagit2.provider";
-
     public final static String DB_NAME = "tagit2.db";
-    public final static int VERSION = 1;
+    public final static int VERSION = 2;
 
     public final static IDatabaseTable[] _tables = new IDatabaseTable[] { new UsersTable(),
                                                                         new FishersTable(),
                                                                         new BaitsTable(),
                                                                         new SpeciesTable(),
                                                                         new CatchesTable()};
+
 
     public TagIt2DatabaseHelper(Context context) {
         super(context, DB_NAME, null, VERSION);

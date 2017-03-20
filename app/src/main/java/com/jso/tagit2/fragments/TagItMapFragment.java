@@ -2,6 +2,7 @@ package com.jso.tagit2.fragments;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.app.FragmentManager;
 import android.content.ContentResolver;
 import android.database.ContentObserver;
 import android.database.Cursor;
@@ -9,11 +10,13 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.Nullable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.google.android.gms.common.api.BaseImplementation;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
@@ -21,20 +24,29 @@ import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
+import com.jso.tagit2.database.IDatabaseTable;
 import com.jso.tagit2.provider.TagIt2Provider;
+
+import java.util.Dictionary;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by JSHELLEY on 13/03/2017.
  */
 
-public class TagItMapFragment extends Fragment implements OnMapReadyCallback {
+public class TagItMapFragment extends Fragment implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
 
     MapView mapView;
     GoogleMap map;
     ContentObserver observer;
+    long selectedCatchId;
+
+    Map<Marker, Long> markerToCatchIdMap = new HashMap<Marker, Long>();
 
     Bundle args;
 
@@ -48,11 +60,20 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback {
 
         args = savedInstanceState != null ? savedInstanceState : getArguments();
 
+        selectedCatchId = args.getLong("CATCH_ID", -1);
+
         return v;
     }
 
-    private void loadCatch(long catchId)
+    private void loadCatch(long catchId, Boolean animate)
     {
+        if (catchId != -1) {
+            Fragment f = getChildFragmentManager().findFragmentById(R.id.fragment_fish_details);
+            if (f instanceof FishDetailsFragment) {
+                ((FishDetailsFragment) f).setCatchId(catchId);
+            }
+        }
+
         Uri uri = Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(catchId));
         Cursor c = getActivity().getContentResolver().query(uri, TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION, null, null, null);
 
@@ -80,25 +101,55 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback {
         };
 
         LatLng latlng = new LatLng(latitude, longitude);
-        map.addMarker(new MarkerOptions()
-        .position(latlng)
-        .title(species));
 
-        map.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 13), 2000, new GoogleMap.CancelableCallback() {
+        MoveCamera(latlng, animate);
+    }
+
+    Boolean isAnimating = false;
+    GoogleMap.CancelableCallback cancelableCallback =
+        new GoogleMap.CancelableCallback() {
             @Override
             public void onFinish() {
-
+                isAnimating = false;
             }
 
             @Override
             public void onCancel() {
-
+                isAnimating = false;
             }
-        });
+        };
+
+    private void MoveCamera(LatLng latlng, Boolean animate) {
+        CameraUpdate update = CameraUpdateFactory.newLatLngZoom(latlng, 13);
+        if (animate) {
+            if (isAnimating)
+                map.stopAnimation();
+            isAnimating = true;
+            map.animateCamera(update, 1000, cancelableCallback);
+        } else
+            map.moveCamera(update);
     }
 
     private void loadCatches()
     {
+        Uri uri = TagIt2Provider.Contract.CATCHES_URI;
+        Cursor c = getActivity().getContentResolver().query(uri, TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION, null, null, null);
+        double latitude = 0, longitude = 0;
+        String species = "";
+        while (c.moveToNext())
+        {
+            latitude = c.getDouble(c.getColumnIndex(CatchesTable.COL_LATITUDE));
+            longitude = c.getDouble(c.getColumnIndex(CatchesTable.COL_LONGITUDE));
+            species = c.getString(c.getColumnIndex("Species"));
+            long catchId = c.getLong(c.getColumnIndex(IDatabaseTable.COL_ID));
+
+            LatLng latlng = new LatLng(latitude, longitude);
+            Marker marker = map.addMarker(new MarkerOptions()
+                    .position(latlng)
+                    .title(species));
+            markerToCatchIdMap.put(marker, catchId);
+
+        }
 
     }
 
@@ -118,11 +169,11 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback {
         // do map init stuff here
         map = googleMap;
 
-        long catchId;
-        if ((catchId = args.getLong("CATCH_ID", -1)) == -1)
-            loadCatches();
-        else
-            loadCatch(catchId);
+        map.setOnMarkerClickListener(this);
+
+        loadCatches();
+        if (selectedCatchId != -1)
+            loadCatch(selectedCatchId, false);
     }
 
     @Override
@@ -151,4 +202,12 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback {
         mapView.onLowMemory();
     }
 
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        long id = markerToCatchIdMap.get(marker);
+
+        loadCatch(id, true);
+
+        return true;
+    }
 }

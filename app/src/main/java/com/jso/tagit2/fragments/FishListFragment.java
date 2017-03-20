@@ -3,10 +3,13 @@ package com.jso.tagit2.fragments;
 import android.app.Activity;
 import android.app.ListFragment;
 import android.app.LoaderManager.LoaderCallbacks;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.CursorLoader;
+import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
+import android.net.Uri;
 import android.support.annotation.Nullable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -20,6 +23,8 @@ import com.jso.tagit2.INavigator;
 import com.jso.tagit2.MainActivity;
 import com.jso.tagit2.R;
 import com.jso.tagit2.controllers.FishCursorAdapter;
+import com.jso.tagit2.database.CatchesTable;
+import com.jso.tagit2.database.IDatabaseTable;
 import com.jso.tagit2.provider.TagIt2Provider;
 
 /**
@@ -30,6 +35,10 @@ public class FishListFragment extends ListFragment implements OnItemClickListene
     private Activity parentActivity;
     private Context context;
     FishCursorAdapter adapter;
+
+    INavigator navigator;
+
+    long selectedFishId;
 
     public FishListFragment() {
     }
@@ -55,9 +64,45 @@ public class FishListFragment extends ListFragment implements OnItemClickListene
     }
 
     @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        if (context instanceof INavigator) {
+            navigator = (INavigator) context;
+        } else {
+            throw new RuntimeException(context.toString()
+                    + " must implement INavigator");
+        }
+    }
+
+    @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         INavigator nav = (INavigator)parentActivity;
         nav.showCatch(id);
+
+        selectedFishId = id;
+
+    }
+
+    private void SelectImage() {
+        Intent intent = new Intent();
+        intent.setType("image/*");
+        intent.setAction(Intent.ACTION_OPEN_DOCUMENT);
+        startActivityForResult(Intent.createChooser(intent,
+                "Select Picture"), 1);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == Activity.RESULT_CANCELED)
+            return;
+
+        if (requestCode == 1) {
+            Uri uri = data.getData();
+            ContentValues values = new ContentValues();
+            values.put(IDatabaseTable.COL_ID, selectedFishId);
+            values.put(CatchesTable.COL_IMAGE_PATH, uri.toString());
+            getActivity().getContentResolver().update(TagIt2Provider.Contract.CATCHES_URI, values, null, null);
+        }
     }
 
     @Override

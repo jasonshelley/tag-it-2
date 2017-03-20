@@ -94,6 +94,20 @@ public class MainActivity extends AppCompatActivity implements INavigator {
                 "Kingfish"
         };
 
+        String[] baits = new String[] {
+                "Prawn",
+                "Squid",
+                "Lure",
+                "Pilchards"
+        };
+
+        String[] fishers = new String[] {
+                "Jase",
+                "Jess",
+                "Amy",
+                "Matt"
+        };
+
         LatLng[] locations = new LatLng[] {
                 new LatLng(-33.980068, 151.195658),
                 new LatLng(-34.006056, 151.193045),
@@ -103,45 +117,73 @@ public class MainActivity extends AppCompatActivity implements INavigator {
         final ContentResolver resolver = getContentResolver();
         
         // delete the existing baits
-        resolver.delete(TagIt2Provider.Contract.CATCHES_URI, null, null);
-        resolver.delete(TagIt2Provider.Contract.BAITS_URI, null, null);
-        resolver.delete(TagIt2Provider.Contract.FISHERS_URI, null, null);
-        resolver.delete(TagIt2Provider.Contract.SPECIES_URI, null, null);
+//        resolver.delete(TagIt2Provider.Contract.CATCHES_URI, null, null);
+//        resolver.delete(TagIt2Provider.Contract.BAITS_URI, null, null);
+//        resolver.delete(TagIt2Provider.Contract.FISHERS_URI, null, null);
+//        resolver.delete(TagIt2Provider.Contract.SPECIES_URI, null, null);
 
         if (true) {
-            // Insert a bait
-            final ContentValues values = new ContentValues();
-            values.put(BaitsTable.COL_BAIT_ID, UUID.randomUUID().toString());
-            values.put(BaitsTable.COL_NAME, "Squid");
-            Uri result = resolver.insert(TagIt2Provider.Contract.BAITS_URI, values);
-            String id = result.getLastPathSegment();
-            Cursor c = resolver.query(result, TagIt2Provider.Contract.BAIT_PROJECTION, null, null, null, null);
-            c.moveToFirst();
+            Random random = new Random((new Date()).getTime());
+            ContentValues values;
+            Uri result;
+
+            String bait = baits[random.nextInt(4)];
+            Cursor c = resolver.query(TagIt2Provider.Contract.BAITS_URI,
+                    TagIt2Provider.Contract.BAIT_PROJECTION,
+                    BaitsTable.COL_NAME + "='" + bait + "'",
+                    null,
+                    null);
+
+            if (!c.moveToFirst()) {
+                c.close();
+                // Insert a bait
+                values = new ContentValues();
+                values.put(BaitsTable.COL_BAIT_ID, UUID.randomUUID().toString());
+                values.put(BaitsTable.COL_NAME, "Prawn");
+                result = resolver.insert(TagIt2Provider.Contract.BAITS_URI, values);
+                c = resolver.query(result, TagIt2Provider.Contract.BAIT_PROJECTION, null, null, null, null);
+                c.moveToFirst();
+            }
+
             final String baitId = c.getString(c.getColumnIndex(BaitsTable.COL_BAIT_ID));
 
-            // Insert a fisher
-            values.clear();
-            values.put(FishersTable.COL_FISHER_ID, UUID.randomUUID().toString());
-            values.put(FishersTable.COL_NAME, "Jase");
-            result = resolver.insert(TagIt2Provider.Contract.FISHERS_URI, values);
-            id = result.getLastPathSegment();
-            c = resolver.query(result, TagIt2Provider.Contract.FISHER_PROJECTION, null, null, null, null);
-            c.moveToFirst();
+            String fisher = fishers[random.nextInt(4)];
+            c = resolver.query(TagIt2Provider.Contract.FISHERS_URI,
+                    TagIt2Provider.Contract.FISHER_PROJECTION,
+                    FishersTable.COL_NAME + "='" + fisher + "'",
+                    null,
+                    null);
+            if (!c.moveToFirst()) {
+                c.close();
+                // Insert a fisher
+                values = new ContentValues();
+                values.put(FishersTable.COL_FISHER_ID, UUID.randomUUID().toString());
+                values.put(FishersTable.COL_NAME, "Matt");
+                result = resolver.insert(TagIt2Provider.Contract.FISHERS_URI, values);
+                c = resolver.query(result, TagIt2Provider.Contract.FISHER_PROJECTION, null, null, null, null);
+                c.moveToFirst();
+            }
             final String fisherId = c.getString(c.getColumnIndex(FishersTable.COL_FISHER_ID));
 
-            Random random = new Random((new Date()).getTime());
-            int speciesIdx = random.nextInt(4);
 
-            // Insert a species
-            values.clear();
-            values.put(SpeciesTable.COL_SPECIES_ID, UUID.randomUUID().toString());
-            values.put(SpeciesTable.COL_NAME, species[speciesIdx]);
-            result = resolver.insert(TagIt2Provider.Contract.SPECIES_URI, values);
-            id = result.getLastPathSegment();
-            c = resolver.query(result, TagIt2Provider.Contract.SPECIES_PROJECTION, null, null, null, null);
-            c.moveToFirst();
+            String thisSpecies = species[random.nextInt(4)];
+            c = resolver.query(TagIt2Provider.Contract.SPECIES_URI,
+                    TagIt2Provider.Contract.SPECIES_PROJECTION,
+                    SpeciesTable.COL_NAME + "='" + thisSpecies + "'",
+                    null,
+                    null);
+
+            if (!c.moveToFirst()) {
+                c.close();
+                // Insert a species
+                values = new ContentValues();
+                values.put(SpeciesTable.COL_SPECIES_ID, UUID.randomUUID().toString());
+                values.put(SpeciesTable.COL_NAME, thisSpecies);
+                result = resolver.insert(TagIt2Provider.Contract.SPECIES_URI, values);
+                c = resolver.query(result, TagIt2Provider.Contract.SPECIES_PROJECTION, null, null, null, null);
+                c.moveToFirst();
+            }
             final String speciesId = c.getString(c.getColumnIndex(SpeciesTable.COL_SPECIES_ID));
-
 
             final LatLng location = locations[random.nextInt(locations.length)];
 
@@ -162,13 +204,13 @@ public class MainActivity extends AppCompatActivity implements INavigator {
             }
 
             // now that we have everything, let's stick in a catch
-            values.clear();
+            values = new ContentValues();
             values.put(CatchesTable.COL_BAIT_ID, baitId);
             values.put(CatchesTable.COL_CATCH_ID, UUID.randomUUID().toString());
             values.put(CatchesTable.COL_FISHER_ID, fisherId);
             values.put(CatchesTable.COL_SPECIES_ID, speciesId);
-            values.put(CatchesTable.COL_LENGTH, 24);
-            values.put(CatchesTable.COL_WEIGHT, 0.8);
+            values.put(CatchesTable.COL_LENGTH, random.nextInt(30));
+            values.put(CatchesTable.COL_WEIGHT, random.nextInt(1000)/1000.0f);
             values.put(CatchesTable.COL_LOCATION_DESC, featureName);
             values.put(CatchesTable.COL_LATITUDE, location.latitude);
             values.put(CatchesTable.COL_LONGITUDE, location.longitude);

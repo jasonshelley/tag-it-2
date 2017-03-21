@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<datastore-indexes autoGenerate="true">
+    <datastore-index kind="Fisherman" ancestor="false" source="manual">
+        <property name="userid" direction="asc"/>
+        <property name="last_modified" direction="desc"/>
+    </datastore-index>
+    <datastore-index kind="Fish" ancestor="false" source="manual">
+        <property name="userid" direction="asc"/>
+        <property name="last_modified" direction="desc"/>
+    </datastore-index>
+    <datastore-index kind="Pole" ancestor="false" source="manual">
+        <property name="userid" direction="asc"/>
+        <property name="last_modified" direction="desc"/>
+    </datastore-index>
+    <datastore-index kind="Photo" ancestor="false" source="manual">
+        <property name="userid" direction="asc"/>
+        <property name="last_modified" direction="desc"/>
+    </datastore-index>
+</datastore-indexes>

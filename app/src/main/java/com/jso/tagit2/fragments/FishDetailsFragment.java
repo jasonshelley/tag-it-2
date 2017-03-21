@@ -4,14 +4,14 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
-import android.app.Fragment;
+import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.jso.tagit2.INavigator;
+import com.jso.tagit2.IStateManager;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.provider.TagIt2Provider;
@@ -24,13 +24,25 @@ import java.util.TimeZone;
 
 public class FishDetailsFragment extends Fragment {
 
-    private INavigator navigator;
+    private IStateManager navigator;
 
-    public final String ARG_CATCH_ID = "CATCH_ID";
+    public final static String ARG_CATCH_ID = "CATCH_ID";
 
     public long catchId = -1;
 
     public View rootView;
+
+    public static FishDetailsFragment newInstance(long catchId)
+    {
+        FishDetailsFragment fragment = new FishDetailsFragment();
+
+        Bundle args = new Bundle();
+        args.putLong(ARG_CATCH_ID, catchId);
+
+        fragment.setArguments(args);
+
+        return fragment;
+    }
 
     public FishDetailsFragment() {
         // Required empty public constructor
@@ -49,17 +61,19 @@ public class FishDetailsFragment extends Fragment {
                              Bundle savedInstanceState) {
         rootView = inflater.inflate(R.layout.fish_tile, null);
 
+        refreshView();
+
         return rootView;
     }
 
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-        if (context instanceof INavigator) {
-            navigator = (INavigator) context;
+        if (context instanceof IStateManager) {
+            navigator = (IStateManager) context;
         } else {
             throw new RuntimeException(context.toString()
-                    + " must implement INavigator");
+                    + " must implement IStateManager");
         }
     }
 
@@ -81,7 +95,7 @@ public class FishDetailsFragment extends Fragment {
 
             Context context = getActivity();
 
-            Cursor cursor = context.getContentResolver().query(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(catchId)), TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION, null, null, null);
+            Cursor cursor = context.getContentResolver().query(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_VIEW_URI, String.valueOf(catchId)), TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION, null, null, null);
             if (!cursor.moveToFirst())
                 return;
 

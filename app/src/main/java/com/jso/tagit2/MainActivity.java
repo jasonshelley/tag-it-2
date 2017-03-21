@@ -1,33 +1,47 @@
 package com.jso.tagit2;
 
-import android.app.Fragment;
-import android.app.FragmentManager;
-import android.app.FragmentTransaction;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.maps.model.LatLng;
 import com.jso.tagit2.database.BaitsTable;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.database.FishersTable;
 import com.jso.tagit2.database.SpeciesTable;
 import com.jso.tagit2.fragments.FishListFragment;
+import com.jso.tagit2.fragments.LoginFragment;
 import com.jso.tagit2.fragments.TagItMapFragment;
+import com.jso.tagit2.models.State;
+import com.jso.tagit2.models.User;
 import com.jso.tagit2.provider.TagIt2Provider;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Date;
@@ -35,10 +49,14 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-public class MainActivity extends AppCompatActivity implements INavigator {
+public class MainActivity extends AppCompatActivity implements IStateManager, GoogleApiClient.OnConnectionFailedListener, IGoogleApiClient {
+
+    private final String TAG = "TagIt2.MainActivity";
 
     public final String CUR_FRAG_PARAM = "CurrentFragment";
     public final String CUR_CATCH_PARAM = "CurrentCatch";
+
+    public final int RC_SIGN_IN = 0x1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,12 +81,40 @@ public class MainActivity extends AppCompatActivity implements INavigator {
             }
         });
 
-        Bundle extras = getState(savedInstanceState);
+        SharedPrefsHelper prefs = new SharedPrefsHelper(this);
+        State savedState = prefs.getState();
+        User user = prefs.getLoggedInUser();
+        if (!user.isLoggedIn())
+            savedState.state = State.LOGIN;
+        go(savedState.state, savedState.args);
+    }
 
-        String curFrag = extras.getString(CUR_FRAG_PARAM);
-        if (curFrag.equals(FishListFragment.class.toString())) {
-            FishListFragment fishListFragment = new FishListFragment();
-            getFragmentManager().beginTransaction().add(R.id.fragment_container, fishListFragment).commit();
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RC_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            handleSignInResult(result);
+        }
+    }
+
+    private void handleSignInResult(GoogleSignInResult result) {
+        Log.d(TAG, "handleSignInResult:" + result.isSuccess());
+        if (result.isSuccess()) {
+            // Signed in successfully, show authenticated UI.
+            GoogleSignInAccount acct = result.getSignInAccount();
+
+            User user = new User();
+            user.id = acct.getId();
+            user.name = acct.getGivenName();
+            user.provider = "google";
+
+            SharedPrefsHelper prefs = new SharedPrefsHelper(this);
+            prefs.setLoggedInUser(user);
+
+            go(State.CATCH_LIST, null);
+        } else {
         }
     }
 
@@ -117,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements INavigator {
         final ContentResolver resolver = getContentResolver();
         
         // delete the existing baits
-//        resolver.delete(TagIt2Provider.Contract.CATCHES_URI, null, null);
+//        resolver.delete(TagIt2Provider.Contract.CATCHES_VIEW_URI, null, null);
 //        resolver.delete(TagIt2Provider.Contract.BAITS_URI, null, null);
 //        resolver.delete(TagIt2Provider.Contract.FISHERS_URI, null, null);
 //        resolver.delete(TagIt2Provider.Contract.SPECIES_URI, null, null);
@@ -215,7 +261,7 @@ public class MainActivity extends AppCompatActivity implements INavigator {
             values.put(CatchesTable.COL_LATITUDE, location.latitude);
             values.put(CatchesTable.COL_LONGITUDE, location.longitude);
             values.put(CatchesTable.COL_TIMESTAMP, (new Date()).getTime());
-            resolver.insert(TagIt2Provider.Contract.CATCHES_URI, values);
+            resolver.insert(TagIt2Provider.Contract.CATCHES_VIEW_URI, values);
         }
     }
 
@@ -241,37 +287,71 @@ public class MainActivity extends AppCompatActivity implements INavigator {
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public void showCatchList() {
-
-    }
-
-    @Override
-    public void showCatch(long catchId) {
-        Bundle args = new Bundle();
-        args.putLong("CATCH_ID", catchId);
-
-        swapFragments(TagItMapFragment.class.toString(), args);
-    }
-
-    private void swapFragments(String newFragmentClass, Bundle args)
+    private void swapFragments(Fragment newFragment)
     {
-        FragmentManager fm = getFragmentManager();
+        FragmentManager fm = getSupportFragmentManager();
+
         FragmentTransaction ft =  fm.beginTransaction();
 
-        Fragment fragment = null;
-
-        if (newFragmentClass.equals(FishListFragment.class.toString()))
-            fragment = new FishListFragment();
-        else if (newFragmentClass.equals(TagItMapFragment.class.toString())) {
-            fragment = new TagItMapFragment();
-        }
-
-        fragment.setArguments(args);
-        ft.replace(R.id.fragment_container, fragment);
+        ft.replace(R.id.fragment_container, newFragment);
 
         ft.addToBackStack(null);
 
         ft.commit();
+    }
+
+    @Override
+    public void go(int newState, JSONObject args) {
+        try {
+            switch (newState) {
+                case State.LOGIN:
+                    swapFragments(LoginFragment.newInstance());
+                    break;
+
+                case State.CATCH_LIST:
+                    swapFragments(FishListFragment.newInstance());
+                    break;
+
+                case State.MAP:
+                    long catchId = args.getLong("id");
+                    swapFragments(TagItMapFragment.newInstance(catchId));
+                    break;
+            }
+        }
+        catch (JSONException jsonException) {
+            Log.e("StateManager", "Invalid args: " + args);
+        }
+
+        SharedPrefsHelper prefs = new SharedPrefsHelper(this);
+        prefs.setState(newState, args);
+    }
+
+    GoogleApiClient googleApiClient;
+
+    private void initGoogleSignIn() {
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestId()
+                .requestProfile()
+                .requestEmail()
+                .requestIdToken("813651815469-ov9i00icnoatto84033ct4s07cakt828.apps.googleusercontent.com")
+                .build();
+
+        googleApiClient = new GoogleApiClient.Builder(this)
+                .enableAutoManage(this, this)
+                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                .build();
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+    }
+
+    @Override
+    public void SignIn() {
+        initGoogleSignIn();
+
+        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient);
+        startActivityForResult(signInIntent, RC_SIGN_IN);
     }
 }

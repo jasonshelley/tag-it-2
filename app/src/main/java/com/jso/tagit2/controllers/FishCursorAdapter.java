@@ -73,7 +73,8 @@ public class FishCursorAdapter extends CursorAdapter {
             imageView.setTag(imagePath);
             ImageAsyncLoader loader = new ImageAsyncLoader(context.getContentResolver(), imageView);
             loader.execute(Uri.parse(imagePath));
-        }
+        } else
+            imageView.setImageBitmap(null);
 
     }
 }

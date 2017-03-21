@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "813651815469",
+    "project_id": "charged-genre-161423"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:813651815469:android:151e048241854960",
+        "android_client_info": {
+          "package_name": "com.jso.tagit2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "813651815469-cb8ogb5j16rj5jf3ep2hjeajnidqbr7a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jso.tagit2",
+            "certificate_hash": "dc841816ce600416c0257f49be84f87161180b7c"
+          }
+        },
+        {
+          "client_id": "813651815469-ov9i00icnoatto84033ct4s07cakt828.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRgWkDYPt499SlnfwvDhBoBVhTkgjf9gA"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

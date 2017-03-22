@@ -38,7 +38,7 @@ public class SharedPrefsHelper {
     }
 
     public User getLoggedInUser() {
-        return getPreference(PREF_USER, User.class, null);
+        return getPreference(PREF_USER, User.class, new User());
     }
 
     public State getState() {
@@ -51,6 +51,7 @@ public class SharedPrefsHelper {
 
     public long getLastSync(String tableName) {
         return getPreference("LastSync" + tableName, long.class, 0L) + 1;
+//        return 0L;
     }
 
     public void setLastSync(String tableName, long timestamp) {

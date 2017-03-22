@@ -1,7 +1,6 @@
 package com.jso.tagit2.fragments;
 
 import android.content.Context;
-import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -9,8 +8,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.google.android.gms.common.SignInButton;
-import com.jso.tagit2.IGoogleApiClient;
-import com.jso.tagit2.IStateManager;
+import com.jso.tagit2.interfaces.IGoogleApiClient;
+import com.jso.tagit2.interfaces.IStateManager;
 import com.jso.tagit2.R;
 
 public class LoginFragment extends Fragment {

@@ -3,6 +3,7 @@ package com.jso.tagit2.controllers;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +14,7 @@ import android.widget.TextView;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.utils.ImageAsyncLoader;
+import com.jso.tagit2.utils.ImageAsyncLoaderTag;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -70,7 +72,15 @@ public class FishCursorAdapter extends CursorAdapter {
         textLength.setText(String.format("%.1fcm", length));
         textWeight.setText(String.format("%.1flb", weight));
         if (imagePath != null) {
-            imageView.setTag(imagePath);
+            Object o = imageView.getTag();
+            if (o instanceof ImageAsyncLoaderTag) {
+                imageView.setImageBitmap(null);
+                ImageAsyncLoaderTag currentTag = (ImageAsyncLoaderTag)o;
+                if (currentTag.bmp != null)
+                    currentTag.bmp.recycle();
+            }
+            ImageAsyncLoaderTag tag = new ImageAsyncLoaderTag(imagePath, imageView);
+            imageView.setTag(tag);
             ImageAsyncLoader loader = new ImageAsyncLoader(context.getContentResolver(), imageView);
             loader.execute(Uri.parse(imagePath));
         } else

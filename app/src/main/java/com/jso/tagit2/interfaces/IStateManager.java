@@ -1,4 +1,4 @@
-package com.jso.tagit2;
+package com.jso.tagit2.interfaces;
 
 import org.json.JSONException;
 import org.json.JSONObject;

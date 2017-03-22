@@ -2,6 +2,8 @@ package com.jso.tagit2.fragments;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -11,12 +13,13 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.jso.tagit2.IStateManager;
+import com.jso.tagit2.interfaces.IStateManager;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.models.State;
 import com.jso.tagit2.provider.TagIt2Provider;
 import com.jso.tagit2.utils.ImageAsyncLoader;
+import com.jso.tagit2.utils.ImageAsyncLoaderTag;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -136,7 +139,18 @@ public class FishDetailsFragment extends Fragment {
             textLocation.setText(locationDesc);
             textLength.setText(String.format("%.1fcm", length));
             textWeight.setText(String.format("%.1flb", weight));
+            Drawable drawable = imageView.getDrawable();
+
             if (imagePath != null) {
+                Object o = imageView.getTag();
+                if (o instanceof ImageAsyncLoaderTag) {
+                    imageView.setImageBitmap(null);
+                    ImageAsyncLoaderTag currentTag = (ImageAsyncLoaderTag)o;
+                    if (currentTag.bmp != null)
+                        currentTag.bmp.recycle();
+                }
+                ImageAsyncLoaderTag tag = new ImageAsyncLoaderTag(imagePath, imageView);
+                imageView.setTag(tag);
                 ImageAsyncLoader loader = new ImageAsyncLoader(context.getContentResolver(), imageView);
                 loader.execute(Uri.parse(imagePath));
             } else

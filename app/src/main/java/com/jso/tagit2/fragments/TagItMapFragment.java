@@ -3,7 +3,6 @@ package com.jso.tagit2.fragments;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
-import android.graphics.Point;
 import android.location.Location;
 import android.support.v4.app.Fragment;
 import android.database.ContentObserver;
@@ -26,17 +25,17 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterItem;
 import com.google.maps.android.clustering.ClusterManager;
 import com.google.maps.android.clustering.algo.Algorithm;
 import com.google.maps.android.clustering.view.DefaultClusterRenderer;
-import com.google.maps.android.geometry.Bounds;
-import com.jso.tagit2.ICatchSelected;
+import com.jso.tagit2.interfaces.ICatchPagerScrolled;
+import com.jso.tagit2.interfaces.ICatchSelected;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.database.IDatabaseTable;
+import com.jso.tagit2.models.Catch;
 import com.jso.tagit2.models.TagIt2ClusterItem;
 import com.jso.tagit2.provider.TagIt2Provider;
 
@@ -52,13 +51,18 @@ import java.util.Set;
  * Created by JSHELLEY on 13/03/2017.
  */
 
-public class TagItMapFragment extends Fragment implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener, ICatchSelected, ClusterManager.OnClusterItemClickListener {
+public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
+        GoogleMap.OnMarkerClickListener,
+        ICatchSelected,
+        ICatchPagerScrolled,
+        ClusterManager.OnClusterItemClickListener {
 
     MapView mapView;
     GoogleMap map;
     ClusterManager<TagIt2ClusterItem> clusterManager;
     ContentObserver observer;
     long selectedCatchId;
+    HashMap<Long, Catch> catches = new HashMap<Long, Catch>();  // maps content provider id to catch
 
     Map<TagIt2ClusterItem, Long> markerToCatchIdMap = new HashMap<>();
 
@@ -135,7 +139,7 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
         if (map == null)
             return;
 
-        CameraUpdate update = CameraUpdateFactory.newLatLngZoom(latlng, 13);
+        CameraUpdate update = CameraUpdateFactory.newLatLngZoom(latlng, 12);
         if (animate) {
             if (isAnimating)
                 map.stopAnimation();
@@ -149,27 +153,20 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
     {
         map.clear();
         clusterManager.clearItems();
+        catches.clear();
 
         Uri uri = TagIt2Provider.Contract.CATCHES_URI;
         Cursor c = getActivity().getContentResolver().query(uri, TagIt2Provider.Contract.CATCHES_PROJECTION, null, null, null);
-        double latitude = 0, longitude = 0;
         String species = "";
         while (c.moveToNext())
         {
-            latitude = c.getDouble(c.getColumnIndex(CatchesTable.COL_LATITUDE));
-            longitude = c.getDouble(c.getColumnIndex(CatchesTable.COL_LONGITUDE));
-            species = c.getString(c.getColumnIndex("Species"));
-            String fisher = c.getString(c.getColumnIndex("Fisher"));
-            long catchId = c.getLong(c.getColumnIndex(IDatabaseTable.COL_ID));
+            Catch newCatch = CatchesTable.fromCursor(c);
 
-            LatLng latlng = new LatLng(latitude, longitude);
-//            Marker marker = map.addMarker(new MarkerOptions()
-//                    .position(latlng)
-//                    .title(species));
+            LatLng latlng = new LatLng(newCatch.latitude, newCatch.longitude);
 
-            TagIt2ClusterItem item = new TagIt2ClusterItem(latlng, species, species + " (" + fisher + ")");
-            markerToCatchIdMap.put(item, catchId);
-
+            TagIt2ClusterItem item = new TagIt2ClusterItem(latlng, species, species + " (" + newCatch.fisher + ")");
+            markerToCatchIdMap.put(item, newCatch._id);
+            catches.put(newCatch._id, newCatch);
 
             clusterManager.addItem(item);
         }
@@ -343,6 +340,29 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
         loadCatch(id, true);
 
         return true;
+    }
+
+    @Override
+    public void onPageScrolled(long fromCatchId, long toCatchId, float offset) {
+        // let's try and scroll the map with the pager
+        Catch fromCatch = catches.get(fromCatchId);
+        Catch toCatch = catches.get(toCatchId);
+
+        if (fromCatch == null || toCatch == null)
+            return;
+
+        LatLng frompos = fromCatch.getPosition();
+        LatLng topos = toCatch.getPosition();
+
+        double dlong = Math.pow(frompos.longitude - topos.longitude, 2);
+        double dlat = Math.pow(frompos.latitude - topos.latitude, 2);
+        double distance = Math.sqrt(dlat + dlong);
+
+        LatLng newpos = new LatLng(frompos.latitude + (topos.latitude - frompos.latitude) * offset,
+                                   frompos.longitude + (topos.longitude - frompos.longitude) * offset);
+
+
+        MoveCamera(newpos, false);
     }
 
     private class TagIt2Cluster implements Cluster<TagIt2ClusterItem> {

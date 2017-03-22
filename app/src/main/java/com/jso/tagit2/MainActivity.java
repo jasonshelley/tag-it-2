@@ -37,6 +37,8 @@ import com.jso.tagit2.fragments.EditCatchFragment;
 import com.jso.tagit2.fragments.FishListFragment;
 import com.jso.tagit2.fragments.LoginFragment;
 import com.jso.tagit2.fragments.TagItMapFragment;
+import com.jso.tagit2.interfaces.IGoogleApiClient;
+import com.jso.tagit2.interfaces.IStateManager;
 import com.jso.tagit2.models.State;
 import com.jso.tagit2.models.User;
 import com.jso.tagit2.provider.TagIt2Provider;
@@ -82,16 +84,25 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
                         .setAction("Action", null).show();
             }
         });
-
+/*
+        ContentResolver resolver = getContentResolver();
+        resolver.delete(TagIt2Provider.Contract.BAITS_URI, null, null);
+        resolver.delete(TagIt2Provider.Contract.SPECIES_URI, null, null);
+        resolver.delete(TagIt2Provider.Contract.FISHERS_URI, null, null);
+        resolver.delete(TagIt2Provider.Contract.CATCHES_URI, null, null);
+*/
         SharedPrefsHelper prefs = new SharedPrefsHelper(this);
         State savedState = prefs.getState();
         User user = prefs.getLoggedInUser();
         if (!user.isLoggedIn())
             savedState.state = State.LOGIN;
+
         go(savedState.state, savedState.args);
 
-        SyncManager sm = SyncManager.getInstance(this);
-        sm.sync();
+        if (user.isLoggedIn()) {
+            SyncManager sm = SyncManager.getInstance(this);
+            sm.sync();
+        }
     }
 
     @Override
@@ -117,6 +128,9 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
 
             SharedPrefsHelper prefs = new SharedPrefsHelper(this);
             prefs.setLoggedInUser(user);
+
+            SyncManager sm = SyncManager.getInstance(this);
+            sm.sync();
 
             go(State.CATCH_LIST, null);
         } else {

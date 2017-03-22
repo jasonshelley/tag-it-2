@@ -220,6 +220,8 @@ public class TagIt2Provider extends ContentProvider {
 
         public final static String[] CATCHES_PROJECTION = new String[] {
                 CatchesTable.COL_ID,
+                CatchesTable.COL_IS_SYNCED,
+                CatchesTable.COL_LAST_MODIFIED,
                 CatchesTable.COL_CATCH_ID,
                 CatchesTable.COL_FISHER,
                 CatchesTable.COL_BAIT,

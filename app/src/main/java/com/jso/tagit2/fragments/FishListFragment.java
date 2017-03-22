@@ -1,6 +1,7 @@
 package com.jso.tagit2.fragments;
 
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.support.v4.app.ListFragment;
 import android.support.v4.app.LoaderManager.LoaderCallbacks;
 import android.content.ContentValues;
@@ -19,7 +20,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.CursorAdapter;
 
-import com.jso.tagit2.IStateManager;
+import com.jso.tagit2.interfaces.IStateManager;
 import com.jso.tagit2.R;
 import com.jso.tagit2.controllers.FishCursorAdapter;
 import com.jso.tagit2.database.CatchesTable;
@@ -65,6 +66,7 @@ public class FishListFragment extends ListFragment implements OnItemClickListene
 
         parentActivity = getActivity();
 
+        ContentResolver resolver = getActivity().getContentResolver();
         adapter = new FishCursorAdapter(parentActivity, null, CursorAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         setListAdapter(adapter);
         getLoaderManager().initLoader(0, null, this);

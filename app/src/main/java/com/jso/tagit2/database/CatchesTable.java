@@ -1,6 +1,9 @@
 package com.jso.tagit2.database;
 
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+
+import com.jso.tagit2.models.Catch;
 
 /**
  * Created by JSHELLEY on 6/03/2017.
@@ -83,5 +86,35 @@ public class CatchesTable extends BaseDatabaseTable {
             db.execSQL("DROP TABLE " + TABLE_NAME);
             onCreate(db);
         }
+    }
+
+    // It is assumed the the cursor has been moved to a valid position
+    // It is the responsibility of the caller to close the cursor
+    public static Catch fromCursor(Cursor cursor) {
+        Catch c = new Catch();
+
+        c._id = cursor.getLong(cursor.getColumnIndex(IDatabaseTable.COL_ID));
+        c.catchId = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_CATCH_ID));
+
+        c.isSynced = cursor.getInt(cursor.getColumnIndex(IDatabaseTable.COL_IS_SYNCED)) == 1;
+        c.lastModified = cursor.getLong(cursor.getColumnIndex(IDatabaseTable.COL_LAST_MODIFIED));
+
+        c.fisher = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_FISHER));
+        c.bait = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_BAIT));
+        c.species = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_SPECIES));
+
+        c.latitude = cursor.getDouble(cursor.getColumnIndex(CatchesTable.COL_LATITUDE));
+        c.longitude = cursor.getDouble(cursor.getColumnIndex(CatchesTable.COL_LONGITUDE));
+
+        c.length = cursor.getDouble(cursor.getColumnIndex(CatchesTable.COL_LENGTH));
+        c.weight = cursor.getDouble(cursor.getColumnIndex(CatchesTable.COL_WEIGHT));
+
+        c.locationDescription = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_LOCATION_DESC));
+
+        c.imagePath = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_IMAGE_PATH));
+
+        c.timestamp = cursor.getLong(cursor.getColumnIndex(CatchesTable.COL_TIMESTAMP));
+
+        return c;
     }
 }

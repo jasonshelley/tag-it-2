@@ -17,19 +17,20 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.jso.tagit2.ICatchSelected;
+import com.jso.tagit2.interfaces.ICatchPagerScrolled;
+import com.jso.tagit2.interfaces.ICatchSelected;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.provider.TagIt2Provider;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageChangeListener {
 
     ViewPager pager;
     CatchesPagerAdapter adapter;
-    ICatchSelected catchSelectedDelegate;
+    ICatchSelected catchSelected;
+    ICatchPagerScrolled catchPagerScrolled;
 
     ContentObserver observer;
 
@@ -43,7 +44,10 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
 
         Fragment parent = getParentFragment();
         if (parent instanceof ICatchSelected) {
-            catchSelectedDelegate = (ICatchSelected)parent;
+            catchSelected = (ICatchSelected)parent;
+        }
+        if (parent instanceof ICatchPagerScrolled) {
+            catchPagerScrolled = (ICatchPagerScrolled)parent;
         }
     }
 
@@ -109,10 +113,10 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
 
     @Override
     public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-        if (positionOffsetPixels == 0) {
-            if (catchSelectedDelegate != null)
-                catchSelectedDelegate.onCatchSelected(adapter.getItemId(position));
-        }
+        Log.d("ViewPager Scolling", String.format("%d, %f, %d", position, positionOffset, positionOffsetPixels));
+        long fromPos = adapter.getItemId(position);
+        long toPos = adapter.getItemId(position + 1);
+        catchPagerScrolled.onPageScrolled(fromPos, toPos, positionOffset);
     }
 
     @Override
@@ -140,6 +144,12 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
         }
 
         public long getItemId(int position) {
+            if (position < 0 )
+                return ids.get(0);
+
+            if (position >= ids.size())
+                return ids.get(ids.size() - 1);
+
             return ids.get(position);
         }
 

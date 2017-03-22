@@ -33,12 +33,14 @@ import com.jso.tagit2.database.BaitsTable;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.database.FishersTable;
 import com.jso.tagit2.database.SpeciesTable;
+import com.jso.tagit2.fragments.EditCatchFragment;
 import com.jso.tagit2.fragments.FishListFragment;
 import com.jso.tagit2.fragments.LoginFragment;
 import com.jso.tagit2.fragments.TagItMapFragment;
 import com.jso.tagit2.models.State;
 import com.jso.tagit2.models.User;
 import com.jso.tagit2.provider.TagIt2Provider;
+import com.jso.tagit2.sync.SyncManager;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -87,6 +89,9 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
         if (!user.isLoggedIn())
             savedState.state = State.LOGIN;
         go(savedState.state, savedState.args);
+
+        SyncManager sm = SyncManager.getInstance(this);
+        sm.sync();
     }
 
     @Override
@@ -251,17 +256,17 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
 
             // now that we have everything, let's stick in a catch
             values = new ContentValues();
-            values.put(CatchesTable.COL_BAIT_ID, baitId);
+            values.put(CatchesTable.COL_BAIT, bait);
             values.put(CatchesTable.COL_CATCH_ID, UUID.randomUUID().toString());
-            values.put(CatchesTable.COL_FISHER_ID, fisherId);
-            values.put(CatchesTable.COL_SPECIES_ID, speciesId);
+            values.put(CatchesTable.COL_FISHER, fisher);
+            values.put(CatchesTable.COL_SPECIES, thisSpecies);
             values.put(CatchesTable.COL_LENGTH, random.nextInt(30));
             values.put(CatchesTable.COL_WEIGHT, random.nextInt(1000)/1000.0f);
             values.put(CatchesTable.COL_LOCATION_DESC, featureName);
             values.put(CatchesTable.COL_LATITUDE, location.latitude);
             values.put(CatchesTable.COL_LONGITUDE, location.longitude);
             values.put(CatchesTable.COL_TIMESTAMP, (new Date()).getTime());
-            resolver.insert(TagIt2Provider.Contract.CATCHES_VIEW_URI, values);
+            resolver.insert(TagIt2Provider.Contract.CATCHES_URI, values);
         }
     }
 
@@ -287,11 +292,30 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    public void onBackPressed() {
+        SharedPrefsHelper prefs = new SharedPrefsHelper(this);
+        State state = prefs.getState();
+        switch (state.state) {
+            case State.MAP:
+                go(State.CATCH_LIST, null);
+                break;
+            case State.EDIT_CATCH:
+                go(State.MAP, state.args);  // same arg
+                break;
+
+            default:
+                super.onBackPressed();
+                break;
+        }
+    }
+
     private void swapFragments(Fragment newFragment)
     {
         FragmentManager fm = getSupportFragmentManager();
 
         FragmentTransaction ft =  fm.beginTransaction();
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
 
         ft.replace(R.id.fragment_container, newFragment);
 
@@ -302,6 +326,8 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
 
     @Override
     public void go(int newState, JSONObject args) {
+
+        long catchId;
         try {
             switch (newState) {
                 case State.LOGIN:
@@ -313,8 +339,13 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
                     break;
 
                 case State.MAP:
-                    long catchId = args.getLong("id");
+                    catchId = args.getLong("id");
                     swapFragments(TagItMapFragment.newInstance(catchId));
+                    break;
+
+                case State.EDIT_CATCH:
+                    catchId = args.getLong("id");
+                    swapFragments(EditCatchFragment.newInstance(catchId));
                     break;
             }
         }

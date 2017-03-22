@@ -2,8 +2,12 @@ package com.jso.tagit2.fragments;
 
 import android.content.ContentResolver;
 import android.content.Context;
+import android.database.ContentObserver;
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentStatePagerAdapter;
@@ -26,6 +30,8 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
     ViewPager pager;
     CatchesPagerAdapter adapter;
     ICatchSelected catchSelectedDelegate;
+
+    ContentObserver observer;
 
     public CatchesPagerFragment() {
         // Required empty public constructor
@@ -55,6 +61,34 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
         pager.addOnPageChangeListener(this);
 
         return v;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        ContentResolver resolver = getActivity().getContentResolver();
+        observer = new ContentObserver(new Handler(new Handler.Callback() {
+            @Override
+            public boolean handleMessage(Message msg) {
+                return false;
+            }
+        })) {
+            @Override
+            public void onChange(boolean selfChange, Uri uri) {
+                super.onChange(selfChange, uri);
+                adapter.init();
+            }
+        };
+
+        resolver.registerContentObserver(TagIt2Provider.Contract.CATCHES_URI, true, observer);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        ContentResolver resolver = getActivity().getContentResolver();
+        if (observer != null)
+            resolver.unregisterContentObserver(observer);
     }
 
     public void setCatchId(long id)
@@ -112,12 +146,14 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
         public void init()
         {
             ContentResolver resolver = context.getContentResolver();
-            Cursor c = resolver.query(TagIt2Provider.Contract.CATCHES_URI, new String[] {CatchesTable.COL_ID }, null, null, null);
+            Cursor c = resolver.query(TagIt2Provider.Contract.CATCHES_URI, new String[] {CatchesTable.COL_ID }, null, null, CatchesTable.COL_TIMESTAMP + " DESC");
             ids = new ArrayList<>(c.getCount());
             while (c.moveToNext()) {
                 ids.add(c.getLong(0));
             }
             c.close();
+
+            this.notifyDataSetChanged();
         }
 
         @Override

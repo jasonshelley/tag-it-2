@@ -36,7 +36,7 @@ public class ImageAsyncLoader extends AsyncTask<Uri, Void, Bitmap> {
         Bitmap bmp = null;
         try {
             bmp = MediaStore.Images.Media.getBitmap(resolver, params[0]);
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return bmp;

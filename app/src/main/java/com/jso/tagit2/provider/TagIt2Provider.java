@@ -35,26 +35,20 @@ public class TagIt2Provider extends ContentProvider {
     private static final int BAITS              = 0x10;
     private static final int BAIT_BY_ID         = BAITS | BY_ID_MASK;
 
-    private static final int CATCHES_VIEW       = 0x20;
-    private static final int CATCH_VIEW_BY_ID   = CATCHES_VIEW | BY_ID_MASK;
+    private static final int CATCHES            = 0x20;
+    private static final int CATCH_BY_ID        = CATCHES | BY_ID_MASK;
 
-    private static final int CATCHES            = 0x30;
-    private static final int CATCH_BY_ID        = CATCHES_VIEW | BY_ID_MASK;
-
-    private static final int FISHERS            = 0x40;
+    private static final int FISHERS            = 0x30;
     private static final int FISHER_BY_ID       = FISHERS | BY_ID_MASK;
 
-    private static final int SPECIES            = 0x50;
+    private static final int SPECIES            = 0x40;
     private static final int SPECIES_BY_ID      = SPECIES | BY_ID_MASK;
 
-    private static final int USERS              = 0x60;
+    private static final int USERS              = 0x50;
     private static final int USER_BY_ID         = USERS | BY_ID_MASK;
 
     static {
         uriMatcher.addURI(Contract.AUTHORITY, UsersTable.TABLE_NAME, USERS);
-
-        uriMatcher.addURI(Contract.AUTHORITY, CatchesTable.TABLE_NAME + "View", CATCHES_VIEW);
-        uriMatcher.addURI(Contract.AUTHORITY, CatchesTable.TABLE_NAME + "View" + "/#", CATCH_VIEW_BY_ID);
 
         uriMatcher.addURI(Contract.AUTHORITY, CatchesTable.TABLE_NAME, CATCHES);
         uriMatcher.addURI(Contract.AUTHORITY, CatchesTable.TABLE_NAME + "/#", CATCH_BY_ID);
@@ -86,28 +80,13 @@ public class TagIt2Provider extends ContentProvider {
         String tableName = "";
         String id = "";
 
-        boolean tablesSet = false;
-
-        // set table
-        if ((uriMatch & TABLE_MASK) == CATCHES_VIEW) {
-            bob.setTables(Contract.CATCHES_VIEW_TABLES);
-            if (projection == null)
-                projection = Contract.CATCHES_VIEW_PROJECTION;
-            if (sortOrder == null)
-                sortOrder = Contract.CATCHES_DEFAULT_SORTORDER;
-            tablesSet = true;
-        }
-
         if ((uriMatch & BY_ID_MASK) != 0) {  // we have an id at the end of the uri
             id = uri.getLastPathSegment();
             tableName = pathSegments.get(pathSegments.size() - 2);
         } else
             tableName = uri.getLastPathSegment();
 
-        tableName = tableName.replace("View", "");
-
-        if (!tablesSet)
-            bob.setTables(tableName);
+        bob.setTables(tableName);
 
         // set selection
         if ((uriMatch & BY_ID_MASK) != 0) {
@@ -138,7 +117,7 @@ public class TagIt2Provider extends ContentProvider {
         long id = db.insert(tableName, null, values);
 
         Uri resultUri = Uri.parse("content://" + Contract.AUTHORITY + "/" + tableName + "/" + id);
-        getContext().getContentResolver().notifyChange(Contract.CATCHES_VIEW_URI, null);
+//        getContext().getContentResolver().notifyChange(Contract.CATCHES_URI, null);
         getContext().getContentResolver().notifyChange(resultUri, null);
 
         return resultUri;
@@ -151,7 +130,8 @@ public class TagIt2Provider extends ContentProvider {
         if (tableName == null)
             return -1;
 
-        getContext().getContentResolver().notifyChange(Contract.CATCHES_VIEW_URI, null);
+
+//        getContext().getContentResolver().notifyChange(Contract.CATCHES_URI, null);
         getContext().getContentResolver().notifyChange(uri, null);
 
         return db.delete(tableName, selection, selectionArgs);
@@ -160,11 +140,24 @@ public class TagIt2Provider extends ContentProvider {
     @Override
     public int update(@NonNull Uri uri, @Nullable ContentValues values, @Nullable String selection, @Nullable String[] selectionArgs) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        String tableName = getTableName(uri);
-        if (tableName == null)
-            return -1;
 
-        getContext().getContentResolver().notifyChange(Contract.CATCHES_VIEW_URI, null);
+        int uriMatch = uriMatcher.match(uri);
+        List<String> pathSegments = uri.getPathSegments();
+        String tableName = "";
+        String id = "";
+
+        if ((uriMatch & BY_ID_MASK) != 0) {  // we have an id at the end of the uri
+            id = uri.getLastPathSegment();
+            tableName = pathSegments.get(pathSegments.size() - 2);
+        } else
+            tableName = uri.getLastPathSegment();
+
+        // set selection
+        if ((uriMatch & BY_ID_MASK) != 0) {
+            selection = IDatabaseTable.COL_ID + "=" + id;
+            selectionArgs = null;
+        }
+
         getContext().getContentResolver().notifyChange(uri, null);
 
         return db.update(tableName, values, selection, selectionArgs);
@@ -179,9 +172,6 @@ public class TagIt2Provider extends ContentProvider {
                 return BaitsTable.TABLE_NAME;
 
             case CATCHES:
-                return CatchesTable.TABLE_NAME;
-
-            case CATCHES_VIEW:
                 return CatchesTable.TABLE_NAME;
 
             case FISHERS:
@@ -201,44 +191,48 @@ public class TagIt2Provider extends ContentProvider {
 
     public static class Contract {
         public final static String AUTHORITY = "com.jso.tagit2.provider";
-        public final static Uri CATCHES_VIEW_URI = Uri.parse("content://" + AUTHORITY + "/" + CatchesTable.TABLE_NAME + "View");  // a view on the catches table
         public final static Uri CATCHES_URI = Uri.parse("content://" + AUTHORITY + "/" + CatchesTable.TABLE_NAME);  // a view on the catches table
         public final static Uri BAITS_URI = Uri.parse("content://" + AUTHORITY + "/" + BaitsTable.TABLE_NAME);  // a view on the catches table
         public final static Uri FISHERS_URI = Uri.parse("content://" + AUTHORITY + "/" + FishersTable.TABLE_NAME);  // a view on the catches table
         public final static Uri SPECIES_URI = Uri.parse("content://" + AUTHORITY + "/" + SpeciesTable.TABLE_NAME);  // a view on the catches table
 
-        public final static String CATCHES_DEFAULT_SORTORDER = CatchesTable.TABLE_NAME + "." + CatchesTable.COL_TIMESTAMP + " ASC";
+        public final static String CATCHES_DEFAULT_SORTORDER = CatchesTable.COL_TIMESTAMP + " ASC";
 
         public final static String[] DEFAULT_PROJECTION = new String [] { "*" };
 
         public final static String[] BAIT_PROJECTION = new String[] {
-            BaitsTable.TABLE_NAME + "." + BaitsTable.COL_ID,
-                BaitsTable.TABLE_NAME + "." + BaitsTable.COL_BAIT_ID,
-                BaitsTable.TABLE_NAME + "." + BaitsTable.COL_NAME
+            BaitsTable.COL_ID,
+                BaitsTable.COL_BAIT_ID,
+                BaitsTable.COL_NAME
         };
 
         public final static String[] FISHER_PROJECTION = new String[] {
-                FishersTable.TABLE_NAME + "." + FishersTable.COL_ID,
-                FishersTable.TABLE_NAME + "." + FishersTable.COL_FISHER_ID,
-                FishersTable.TABLE_NAME + "." + FishersTable.COL_NAME
+                FishersTable.COL_ID,
+                FishersTable.COL_FISHER_ID,
+                FishersTable.COL_NAME
         };
 
         public final static String[] SPECIES_PROJECTION = new String[] {
-                SpeciesTable.TABLE_NAME + "." + SpeciesTable.COL_ID,
-                SpeciesTable.TABLE_NAME + "." + SpeciesTable.COL_SPECIES_ID,
-                SpeciesTable.TABLE_NAME + "." + SpeciesTable.COL_NAME
+                SpeciesTable.COL_ID,
+                SpeciesTable.COL_SPECIES_ID,
+                SpeciesTable.COL_NAME
         };
 
-        public final static String[] CATCHES_VIEW_PROJECTION = new String[] {
-                FishersTable.TABLE_NAME + "." + FishersTable.COL_NAME + " as Fisher",
-                SpeciesTable.TABLE_NAME + "." + SpeciesTable.COL_NAME + " as Species",
-                BaitsTable.TABLE_NAME + "." + BaitsTable.COL_NAME + " as Bait",
-                CatchesTable.TABLE_NAME + ".*"
+        public final static String[] CATCHES_PROJECTION = new String[] {
+                CatchesTable.COL_ID,
+                CatchesTable.COL_CATCH_ID,
+                CatchesTable.COL_FISHER,
+                CatchesTable.COL_BAIT,
+                CatchesTable.COL_SPECIES,
+                CatchesTable.COL_LATITUDE,
+                CatchesTable.COL_LONGITUDE,
+                CatchesTable.COL_LOCATION_DESC,
+                CatchesTable.COL_LENGTH,
+                CatchesTable.COL_WEIGHT,
+                CatchesTable.COL_THUMBNAIL_PATH,
+                CatchesTable.COL_IMAGE_PATH,
+                CatchesTable.COL_TIMESTAMP,
+
         };
-
-        public final static String CATCHES_VIEW_TABLES = CatchesTable.TABLE_NAME + " JOIN " + BaitsTable.TABLE_NAME + " ON " + CatchesTable.TABLE_NAME + "." + CatchesTable.COL_BAIT_ID + "=" + BaitsTable.TABLE_NAME + "." + BaitsTable.COL_BAIT_ID
-                + " JOIN " + FishersTable.TABLE_NAME + " ON " + CatchesTable.TABLE_NAME + "." + CatchesTable.COL_FISHER_ID + "=" + FishersTable.TABLE_NAME + "." + FishersTable.COL_FISHER_ID
-                + " JOIN " + SpeciesTable.TABLE_NAME + " ON " + CatchesTable.TABLE_NAME + "." + CatchesTable.COL_SPECIES_ID + "=" + SpeciesTable.TABLE_NAME + "." + SpeciesTable.COL_SPECIES_ID;
-
     }
 }

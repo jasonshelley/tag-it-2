@@ -6,21 +6,29 @@ import android.database.sqlite.SQLiteDatabase;
  * Created by JSHELLEY on 6/03/2017.
  */
 
-public class BaitsTable implements IDatabaseTable {
+public class BaitsTable extends BaseDatabaseTable {
 
     public static String TABLE_NAME = "Baits";
 
     public static String COL_BAIT_ID = "BaitId";
-    public static String COLSPEC_BAIT_ID = "TEXT UNIQUE";
+    public static String COLSPEC_BAIT_ID = COL_BAIT_ID +  " TEXT UNIQUE";
 
     public static String COL_NAME = "Name";
-    public static String COLSPEC_NAME = "TEXT";
+    public static String COLSPEC_NAME = COL_NAME + " TEXT";
 
     public static String TABLE_CREATE = "CREATE TABLE " + TABLE_NAME + " ( "
-            + SQL_COL_ID + ", "
-            + String.format(COL_FMT, COL_BAIT_ID, COLSPEC_BAIT_ID)
-            + String.format(COL_FMT_LAST, COL_NAME, COLSPEC_NAME)
+            + COLSPEC_ID + ", "
+            + COLSPEC_IS_SYNCED + ", "
+            + COLSPEC_LAST_MODIFIED + ", "
+            + COLSPEC_BAIT_ID + ", "
+            + COLSPEC_NAME
+            + COLSPEC_SELECTION_COUNT
             + ")";
+
+    @Override
+    protected String getTableName() {
+        return TABLE_NAME;
+    }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
@@ -29,6 +37,10 @@ public class BaitsTable implements IDatabaseTable {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
+        super.onUpgrade(db, oldVersion, newVersion);
+       if (oldVersion < 3) {
+            db.execSQL("alter table " + TABLE_NAME + " add column " + COLSPEC_SELECTION_COUNT);
+        }
     }
+
 }

@@ -112,7 +112,7 @@ public class FishListFragment extends ListFragment implements OnItemClickListene
             ContentValues values = new ContentValues();
             values.put(IDatabaseTable.COL_ID, selectedFishId);
             values.put(CatchesTable.COL_IMAGE_PATH, uri.toString());
-            getActivity().getContentResolver().update(TagIt2Provider.Contract.CATCHES_VIEW_URI, values, null, null);
+            getActivity().getContentResolver().update(TagIt2Provider.Contract.CATCHES_URI, values, null, null);
         }
     }
 
@@ -120,8 +120,8 @@ public class FishListFragment extends ListFragment implements OnItemClickListene
     @Override
     public Loader onCreateLoader(int id, Bundle args) {
         return new CursorLoader(parentActivity,
-                TagIt2Provider.Contract.CATCHES_VIEW_URI,
-                TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION,
+                TagIt2Provider.Contract.CATCHES_URI,
+                TagIt2Provider.Contract.CATCHES_PROJECTION,
                 null,
                 null,
                 null);

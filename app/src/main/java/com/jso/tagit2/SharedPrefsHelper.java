@@ -49,6 +49,14 @@ public class SharedPrefsHelper {
         setPreference(PREF_STATE, new State(state, args));
     }
 
+    public long getLastSync(String tableName) {
+        return getPreference("LastSync" + tableName, long.class, 0L) + 1;
+    }
+
+    public void setLastSync(String tableName, long timestamp) {
+        setPreference("LastSync" + tableName, timestamp);
+    }
+
     private void setPreference(String key, Object pref) {
         SharedPreferences prefs = getSharedPrefs();
         SharedPreferences.Editor editor = prefs.edit();

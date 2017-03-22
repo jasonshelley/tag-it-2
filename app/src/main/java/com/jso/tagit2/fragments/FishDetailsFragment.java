@@ -14,8 +14,12 @@ import android.widget.TextView;
 import com.jso.tagit2.IStateManager;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
+import com.jso.tagit2.models.State;
 import com.jso.tagit2.provider.TagIt2Provider;
 import com.jso.tagit2.utils.ImageAsyncLoader;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -24,7 +28,7 @@ import java.util.TimeZone;
 
 public class FishDetailsFragment extends Fragment {
 
-    private IStateManager navigator;
+    private IStateManager stateManager;
 
     public final static String ARG_CATCH_ID = "CATCH_ID";
 
@@ -61,6 +65,17 @@ public class FishDetailsFragment extends Fragment {
                              Bundle savedInstanceState) {
         rootView = inflater.inflate(R.layout.fish_tile, null);
 
+        rootView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    stateManager.go(State.EDIT_CATCH, new JSONObject("{ id: " + catchId + "}"));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         refreshView();
 
         return rootView;
@@ -70,7 +85,7 @@ public class FishDetailsFragment extends Fragment {
     public void onAttach(Context context) {
         super.onAttach(context);
         if (context instanceof IStateManager) {
-            navigator = (IStateManager) context;
+            stateManager = (IStateManager) context;
         } else {
             throw new RuntimeException(context.toString()
                     + " must implement IStateManager");
@@ -95,14 +110,14 @@ public class FishDetailsFragment extends Fragment {
 
             Context context = getActivity();
 
-            Cursor cursor = context.getContentResolver().query(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_VIEW_URI, String.valueOf(catchId)), TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION, null, null, null);
+            Cursor cursor = context.getContentResolver().query(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(catchId)), TagIt2Provider.Contract.CATCHES_PROJECTION, null, null, null);
             if (!cursor.moveToFirst())
                 return;
 
-            String species = cursor.getString(cursor.getColumnIndex("Species"));
-            String fisher = cursor.getString(cursor.getColumnIndex("Fisher"));
-            long datetime = cursor.getLong(cursor.getColumnIndex("Timestamp"));
-            String locationDesc = cursor.getString(cursor.getColumnIndex("LocationDesc"));
+            String species = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_SPECIES));
+            String fisher = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_FISHER));
+            long datetime = cursor.getLong(cursor.getColumnIndex(CatchesTable.COL_TIMESTAMP));
+            String locationDesc = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_LOCATION_DESC));
             String imagePath = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_IMAGE_PATH));
 
             float length = cursor.getFloat(cursor.getColumnIndex(CatchesTable.COL_LENGTH));
@@ -117,7 +132,7 @@ public class FishDetailsFragment extends Fragment {
 
             textSpecies.setText(species);
             textFisher.setText(fisher);
-            textDateTime.setText(sdf.format(new Date(datetime)));
+            textDateTime.setText(sdf.format(new Date(datetime * 1000L)));
             textLocation.setText(locationDesc);
             textLength.setText(String.format("%.1fcm", length));
             textWeight.setText(String.format("%.1flb", weight));
@@ -132,6 +147,6 @@ public class FishDetailsFragment extends Fragment {
     @Override
     public void onDetach() {
         super.onDetach();
-        navigator = null;
+        stateManager = null;
     }
 }

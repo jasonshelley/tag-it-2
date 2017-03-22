@@ -6,35 +6,43 @@ import android.database.sqlite.SQLiteDatabase;
  * Created by JSHELLEY on 6/03/2017.
  */
 
-public class SpeciesTable implements IDatabaseTable {
+public class SpeciesTable extends BaseDatabaseTable {
 
     public static String TABLE_NAME = "Species";
 
     public static String COL_SPECIES_ID = "SpeciesId";
-    public static String COLSPEC_SPECIES_ID = "TEXT UNIQUE";
+    public static String COLSPEC_SPECIES_ID = COL_SPECIES_ID + " TEXT UNIQUE";
 
     public static String COL_NAME = "Name";
-    public static String COLSPEC_NAME = "TEXT";
+    public static String COLSPEC_NAME = COL_NAME + " TEXT";
 
     public static String COL_BAG_LIMIT = "BagLimit";
-    public static String COLSPEC_BAG_LIMIT = "INTEGER";
+    public static String COLSPEC_BAG_LIMIT = COL_BAG_LIMIT + " INTEGER";
 
     // Minimum size in cm
     public static String COL_SIZE_MIN = "SizeMin";
-    public static String COLSPEC_SIZE_MIN = "INTEGER";
+    public static String COLSPEC_SIZE_MIN = COL_SIZE_MIN + " INTEGER";
 
     // Maximum size in cm
     public static String COL_SIZE_MAX = "SizeMax";
-    public static String COLSPEC_SIZE_MAX = "INTEGER";
+    public static String COLSPEC_SIZE_MAX = COL_SIZE_MAX + " INTEGER";
 
     public static String TABLE_CREATE = "CREATE TABLE " + TABLE_NAME + " ( "
-            + SQL_COL_ID + ", "
-            + String.format(COL_FMT, COL_SPECIES_ID, COLSPEC_SPECIES_ID)
-            + String.format(COL_FMT, COL_BAG_LIMIT, COLSPEC_BAG_LIMIT)
-            + String.format(COL_FMT, COL_SIZE_MIN, COLSPEC_SIZE_MIN)
-            + String.format(COL_FMT, COL_SIZE_MAX, COLSPEC_SIZE_MAX)
-            + String.format(COL_FMT_LAST, COL_NAME, COLSPEC_NAME)
+            + COLSPEC_ID + ", "
+            + COLSPEC_IS_SYNCED + ", "
+            + COLSPEC_LAST_MODIFIED + ", "
+            + COLSPEC_SPECIES_ID + ", "
+            + COLSPEC_BAG_LIMIT + ", "
+            + COLSPEC_SIZE_MIN + ", "
+            + COLSPEC_SIZE_MAX + ", "
+            + COLSPEC_SELECTION_COUNT + ", "
+            + COLSPEC_NAME
             + ")";
+
+    @Override
+    public String getTableName() {
+        return TABLE_NAME;
+    }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
@@ -43,6 +51,9 @@ public class SpeciesTable implements IDatabaseTable {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
+        super.onUpgrade(db, oldVersion, newVersion);
+        if (oldVersion < 4) {
+            db.execSQL("alter table " + TABLE_NAME + " add column " + COLSPEC_SELECTION_COUNT);
+        }
     }
 }

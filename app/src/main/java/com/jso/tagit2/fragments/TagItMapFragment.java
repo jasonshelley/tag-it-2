@@ -1,6 +1,7 @@
 package com.jso.tagit2.fragments;
 
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.graphics.Point;
 import android.location.Location;
@@ -97,8 +98,8 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
             }
         }
 
-        Uri uri = Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_VIEW_URI, String.valueOf(catchId));
-        Cursor c = getActivity().getContentResolver().query(uri, TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION, null, null, null);
+        Uri uri = Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(catchId));
+        Cursor c = getActivity().getContentResolver().query(uri, TagIt2Provider.Contract.CATCHES_PROJECTION, null, null, null);
 
         double latitude = 0, longitude = 0;
         String species = "";
@@ -106,22 +107,10 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
         {
             latitude = c.getDouble(c.getColumnIndex(CatchesTable.COL_LATITUDE));
             longitude = c.getDouble(c.getColumnIndex(CatchesTable.COL_LONGITUDE));
-            species = c.getString(c.getColumnIndex("Species"));
+            species = c.getString(c.getColumnIndex(CatchesTable.COL_SPECIES));
         }
 
         c.close();
-
-        observer = new ContentObserver(new Handler(new Handler.Callback() {
-            @Override
-            public boolean handleMessage(Message msg) {
-                return false;
-            }
-        })) {
-            @Override
-            public void onChange(boolean selfChange, Uri uri) {
-                super.onChange(selfChange, uri);
-            }
-        };
 
         LatLng latlng = new LatLng(latitude, longitude);
 
@@ -143,6 +132,9 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
         };
 
     private void MoveCamera(LatLng latlng, Boolean animate) {
+        if (map == null)
+            return;
+
         CameraUpdate update = CameraUpdateFactory.newLatLngZoom(latlng, 13);
         if (animate) {
             if (isAnimating)
@@ -155,8 +147,11 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
 
     private void loadCatches(ClusterManager<TagIt2ClusterItem> clusterManager)
     {
-        Uri uri = TagIt2Provider.Contract.CATCHES_VIEW_URI;
-        Cursor c = getActivity().getContentResolver().query(uri, TagIt2Provider.Contract.CATCHES_VIEW_PROJECTION, null, null, null);
+        map.clear();
+        clusterManager.clearItems();
+
+        Uri uri = TagIt2Provider.Contract.CATCHES_URI;
+        Cursor c = getActivity().getContentResolver().query(uri, TagIt2Provider.Contract.CATCHES_PROJECTION, null, null, null);
         double latitude = 0, longitude = 0;
         String species = "";
         while (c.moveToNext())
@@ -177,9 +172,7 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
 
 
             clusterManager.addItem(item);
-
         }
-
     }
 
     @Override
@@ -252,7 +245,7 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
                         Location.distanceBetween(zeroLocation.latitude, zeroLocation.longitude, idxLocation.latitude, idxLocation.longitude, distance);
                         Log.i("Clustering", String.format("%f: %f, %f", multiplier, distance[0], distance[0]* multiplier));
 
-                        if (distance[0] * multiplier < 1000) {
+                        if (distance[0] * multiplier < 500) {
                             cluster.addItem(itemsCopy.get(i));
                             itemsCopy.remove(i);
                             i--;    // will be incremented again shortly
@@ -283,14 +276,30 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback, Go
     public void onResume() {
         super.onResume();
         mapView.onResume();
+        ContentResolver resolver = getActivity().getContentResolver();
+        observer = new ContentObserver(new Handler(new Handler.Callback() {
+            @Override
+            public boolean handleMessage(Message msg) {
+                return false;
+            }
+        })) {
+            @Override
+            public void onChange(boolean selfChange, Uri uri) {
+                super.onChange(selfChange, uri);
+                loadCatches(clusterManager);
+            }
+        };
+
+        resolver.registerContentObserver(TagIt2Provider.Contract.CATCHES_URI, true, observer);
     }
 
     @Override
     public void onPause() {
         super.onPause();
         mapView.onPause();
+        ContentResolver resolver = getActivity().getContentResolver();
         if (observer != null)
-            getActivity().getContentResolver().unregisterContentObserver(observer);
+            resolver.unregisterContentObserver(observer);
     }
 
     @Override

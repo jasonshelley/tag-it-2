@@ -126,7 +126,7 @@ public class FishListFragment extends ListFragment implements OnItemClickListene
                 TagIt2Provider.Contract.CATCHES_PROJECTION,
                 null,
                 null,
-                null);
+                CatchesTable.COL_TIMESTAMP + " DESC");
     }
 
     @Override

@@ -81,16 +81,19 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        View v =  inflater.inflate(R.layout.fragment_map, container, false);
+        try {
+            View v = inflater.inflate(R.layout.fragment_map, container, false);
 
-        mapView = (MapView)v.findViewById(R.id.mapview);
-        mapView.onCreate(savedInstanceState);
+            mapView = (MapView) v.findViewById(R.id.mapview);
+            mapView.onCreate(savedInstanceState);
 
-        args = savedInstanceState != null ? savedInstanceState : getArguments();
+            args = savedInstanceState != null ? savedInstanceState : getArguments();
 
-        selectedCatchId = args.getLong("CATCH_ID", -1);
-
-        return v;
+            selectedCatchId = args.getLong("CATCH_ID", -1);
+            return v;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void loadCatch(long catchId, Boolean animate)
@@ -139,7 +142,7 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
         if (map == null)
             return;
 
-        CameraUpdate update = CameraUpdateFactory.newLatLngZoom(latlng, 12);
+        CameraUpdate update = CameraUpdateFactory.newLatLng(latlng);
         if (animate) {
             if (isAnimating)
                 map.stopAnimation();

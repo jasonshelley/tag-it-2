@@ -27,6 +27,7 @@ public class Catch {
 
     public String locationDescription;
 
+    public String thumbnailPath;
     public String imagePath;
 
     public long timestamp;

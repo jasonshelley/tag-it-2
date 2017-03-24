@@ -112,6 +112,7 @@ public class CatchesTable extends BaseDatabaseTable {
         c.locationDescription = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_LOCATION_DESC));
 
         c.imagePath = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_IMAGE_PATH));
+        c.thumbnailPath = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_THUMBNAIL_PATH));
 
         c.timestamp = cursor.getLong(cursor.getColumnIndex(CatchesTable.COL_TIMESTAMP));
 

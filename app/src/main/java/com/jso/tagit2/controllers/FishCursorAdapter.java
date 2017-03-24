@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
+import com.jso.tagit2.utils.BitmapHelper;
 import com.jso.tagit2.utils.ImageAsyncLoader;
 import com.jso.tagit2.utils.ImageAsyncLoaderTag;
 
@@ -55,7 +56,7 @@ public class FishCursorAdapter extends CursorAdapter {
         String fisher = cursor.getString(cursor.getColumnIndex("Fisher"));
         long datetime = cursor.getLong(cursor.getColumnIndex("Timestamp"));
         String locationDesc = cursor.getString(cursor.getColumnIndex("LocationDesc"));
-        String imagePath = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_IMAGE_PATH));
+        String imagePath = cursor.getString(cursor.getColumnIndex(CatchesTable.COL_THUMBNAIL_PATH));
 
         float length = cursor.getFloat(cursor.getColumnIndex(CatchesTable.COL_LENGTH));
         float weight = cursor.getFloat(cursor.getColumnIndex(CatchesTable.COL_WEIGHT));
@@ -67,10 +68,10 @@ public class FishCursorAdapter extends CursorAdapter {
 
         textSpecies.setText(species);
         textFisher.setText(fisher);
-        textDateTime.setText(sdf.format(new Date(datetime)));
+        textDateTime.setText(sdf.format(new Date(datetime * 1000)));
         textLocation.setText(locationDesc);
-        textLength.setText(String.format("%.1fcm", length));
-        textWeight.setText(String.format("%.1flb", weight));
+        textLength.setText(String.format("%.0f cm", length));
+        textWeight.setText(String.format("%.1f kg", weight));
         if (imagePath != null) {
             Object o = imageView.getTag();
             if (o instanceof ImageAsyncLoaderTag) {
@@ -82,7 +83,7 @@ public class FishCursorAdapter extends CursorAdapter {
             ImageAsyncLoaderTag tag = new ImageAsyncLoaderTag(imagePath, imageView);
             imageView.setTag(tag);
             ImageAsyncLoader loader = new ImageAsyncLoader(context.getContentResolver(), imageView);
-            loader.execute(Uri.parse(imagePath));
+            loader.execute(BitmapHelper.getFileProviderUri(context, imagePath));
         } else
             imageView.setImageBitmap(null);
 

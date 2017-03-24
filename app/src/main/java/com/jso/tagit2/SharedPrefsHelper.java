@@ -2,6 +2,7 @@ package com.jso.tagit2;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.Uri;
 
 import com.google.gson.Gson;
 import com.jso.tagit2.models.State;
@@ -56,6 +57,14 @@ public class SharedPrefsHelper {
 
     public void setLastSync(String tableName, long timestamp) {
         setPreference("LastSync" + tableName, timestamp);
+    }
+
+    public void setNewPhotoUri(Uri uri) {
+        setPreference("NewPhotoPath", uri);
+    }
+
+    public Uri getNewPhotoUri() {
+        return getPreference("NewPhotoPath", Uri.class, null);
     }
 
     private void setPreference(String key, Object pref) {

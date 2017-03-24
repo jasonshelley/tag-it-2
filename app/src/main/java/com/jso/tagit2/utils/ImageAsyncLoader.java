@@ -8,13 +8,20 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.PatternMatcher;
 import android.provider.MediaStore;
+import android.renderscript.ScriptGroup;
 import android.util.Log;
 import android.widget.ImageView;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.annotation.RegEx;
 
 /**
  * Created by jshelley on 20/03/2017.
@@ -39,29 +46,14 @@ public class ImageAsyncLoader extends AsyncTask<Uri, Void, Bitmap> {
     @Override
     protected Bitmap doInBackground(Uri... params) {
         try {
-            InputStream input = resolver.openInputStream(params[0]);
-
-            BitmapFactory.Options onlyBoundsOptions = new BitmapFactory.Options();
-            onlyBoundsOptions.inJustDecodeBounds = true;
-            onlyBoundsOptions.inDither=true;//optional
-            onlyBoundsOptions.inPreferredConfig=Bitmap.Config.ARGB_8888;//optional
-            BitmapFactory.decodeStream(input, null, onlyBoundsOptions);
-            input.close();
-
-            if ((onlyBoundsOptions.outWidth == -1) || (onlyBoundsOptions.outHeight == -1)) {
-                return null;
+            Uri thumbUri = params[0];
+            resolver.openInputStream(thumbUri);
+            InputStream is = resolver.openInputStream(thumbUri);
+            Bitmap bitmap = null;
+            if (is != null) {
+                bitmap = BitmapFactory.decodeStream(is);
+                is.close();
             }
-
-            int originalSize = (onlyBoundsOptions.outHeight > onlyBoundsOptions.outWidth) ? onlyBoundsOptions.outHeight : onlyBoundsOptions.outWidth;
-
-            double ratio = (originalSize > THUMBNAIL_SIZE) ? (originalSize / THUMBNAIL_SIZE) : 1.0;
-
-            BitmapFactory.Options bitmapOptions = new BitmapFactory.Options();
-            bitmapOptions.inSampleSize = getPowerOfTwoForSampleRatio(ratio);
-            bitmapOptions.inPreferredConfig=Bitmap.Config.ARGB_8888;//
-            input = resolver.openInputStream(params[0]);
-            Bitmap bitmap = BitmapFactory.decodeStream(input, null, bitmapOptions);
-            input.close();
 
             return bitmap;
         } catch (Exception e) {
@@ -69,11 +61,6 @@ public class ImageAsyncLoader extends AsyncTask<Uri, Void, Bitmap> {
         }
 
         return null;
-    }
-    private static int getPowerOfTwoForSampleRatio(double ratio){
-        int k = Integer.highestOneBit((int)Math.floor(ratio));
-        if(k==0) return 1;
-        else return k;
     }
     @Override
     protected void onPostExecute(Bitmap bitmap) {

@@ -8,18 +8,24 @@ import android.location.Location;
  */
 
 public class LocationHelper {
-    public static double distance(double dlat1, double dlng1, double dlat2, double dlng2) {
-        double lat1, lat2, lng1, lng2;
-        lat1 = Math.toRadians(dlat1);
-        lat2 = Math.toRadians(dlat2);
-        lng2 = Math.toRadians(dlng1);
-        lng1 = Math.toRadians(dlng2);
-
+    public static double distance(Location l1, Location l2) {
         double r = 6378100; // earth radius in metres
 
-        double h = Math.sinh(lat2 - lat1) + Math.cos(lat1*Math.cos(lat2)*Math.sinh(lng2 - lng1));
+        double lat1 = Math.toRadians(l1.getLatitude());
+        double lng1 = Math.toRadians(l1.getLongitude());
+        double lat2 = Math.toRadians(l2.getLatitude());
+        double lng2 = Math.toRadians(l2.getLongitude());
 
-        return 2 * r * Math.asin(Math.sqrt(h));
+        double dLat = Math.toRadians(l2.getLatitude()-l1.getLatitude());
+        double dLon = Math.toRadians(l2.getLongitude()-l1.getLongitude());
+        double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                   Math.cos(lat1) * Math.cos(lat2) *
+                   Math.sin(dLon/2) * Math.sin(dLon/2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        double d = r * c; // Distance in m
+
+        return d;
     }
 
 }

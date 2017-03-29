@@ -113,7 +113,6 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
 
     @Override
     public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-        Log.d("ViewPager Scolling", String.format("%d, %f, %d", position, positionOffset, positionOffsetPixels));
         long fromPos = adapter.getItemId(position);
         long toPos = adapter.getItemId(position + 1);
         catchPagerScrolled.onPageScrolled(fromPos, toPos, positionOffset);

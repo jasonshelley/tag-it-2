@@ -1,5 +1,6 @@
 package com.jso.tagit2.database;
 
+import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
@@ -117,5 +118,25 @@ public class CatchesTable extends BaseDatabaseTable {
         c.timestamp = cursor.getLong(cursor.getColumnIndex(CatchesTable.COL_TIMESTAMP));
 
         return c;
+    }
+
+    public static ContentValues getContentValues(Catch c) {
+        ContentValues values = new ContentValues();
+        values.put(CatchesTable.COL_CATCH_ID, c.catchId);
+        values.put(CatchesTable.COL_IS_SYNCED, c.isSynced);
+        values.put(CatchesTable.COL_LAST_MODIFIED, c.lastModified);
+        values.put(CatchesTable.COL_FISHER, c.fisher);
+        values.put(CatchesTable.COL_BAIT, c.bait);
+        values.put(CatchesTable.COL_SPECIES, c.species);
+        values.put(CatchesTable.COL_LATITUDE, c.latitude);
+        values.put(CatchesTable.COL_LONGITUDE, c.longitude);
+        values.put(CatchesTable.COL_LENGTH, c.length);
+        values.put(CatchesTable.COL_WEIGHT, c.weight);
+        values.put(CatchesTable.COL_LOCATION_DESC, c.locationDescription);
+        values.put(CatchesTable.COL_IMAGE_PATH, c.imagePath);
+        values.put(CatchesTable.COL_THUMBNAIL_PATH, c.thumbnailPath);
+        values.put(CatchesTable.COL_TIMESTAMP, c.timestamp);
+
+        return values;
     }
 }

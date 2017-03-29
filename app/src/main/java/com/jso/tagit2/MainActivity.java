@@ -1,5 +1,16 @@
 package com.jso.tagit2;
 
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.location.GnssStatus;
+import android.location.GpsSatellite;
+import android.location.GpsStatus;
+import android.location.Location;
+import android.media.Image;
+import android.os.IBinder;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
@@ -15,12 +26,15 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -29,6 +43,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.common.collect.Iterators;
 import com.jso.tagit2.database.BaitsTable;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.database.FishersTable;
@@ -39,21 +54,28 @@ import com.jso.tagit2.fragments.LoginFragment;
 import com.jso.tagit2.fragments.TagItMapFragment;
 import com.jso.tagit2.interfaces.IGoogleApiClient;
 import com.jso.tagit2.interfaces.IStateManager;
+import com.jso.tagit2.models.Catch;
 import com.jso.tagit2.models.State;
 import com.jso.tagit2.models.User;
 import com.jso.tagit2.provider.TagIt2Provider;
+import com.jso.tagit2.services.LocationService;
 import com.jso.tagit2.sync.SyncManager;
+import com.jso.tagit2.utils.AsyncGeocoder;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-public class MainActivity extends AppCompatActivity implements IStateManager, GoogleApiClient.OnConnectionFailedListener, IGoogleApiClient {
+public class MainActivity extends AppCompatActivity implements IStateManager,
+        GoogleApiClient.OnConnectionFailedListener,
+        IGoogleApiClient,
+        LocationService.LocationChangedListener {
 
     private final String TAG = "TagIt2.MainActivity";
 
@@ -62,6 +84,16 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
 
     public final int RC_SIGN_IN = 0x1000;
 
+    private final int PERMISSION_REQUEST_ACCESS_FINE_LOCATION = 0x01;
+
+    TextView textAccuracy;
+    ImageView imageStatus;
+    ImageView imageFixStatus;
+
+    GpsStatus gpsStatus;
+
+    LocationService.LocationServiceBinder locationServiceBinder;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,18 +101,19 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        textAccuracy = (TextView)findViewById(R.id.text_accuracy);
+        textAccuracy.setText("");
+
+        imageStatus = (ImageView)findViewById(R.id.image_status);
+        imageFixStatus = (ImageView)findViewById(R.id.image_fix_status);
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                insertNewFishAndEdit();
 
-                try {
-                    insertDummyFish();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                Snackbar.make(view, "Adding random fish", Snackbar.LENGTH_LONG)
+                Snackbar.make(view, "Fill in the details for your new catch!", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
             }
         });
@@ -103,6 +136,34 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
             SyncManager sm = SyncManager.getInstance(this);
             sm.sync();
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        int permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_ACCESS_FINE_LOCATION);
+        } else {
+            startLocationService();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_REQUEST_ACCESS_FINE_LOCATION:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    startLocationService();
+                }
+                break;
+        }
+    }
+
+    private void startLocationService() {
+        Intent locationServiceIntent = new Intent(this, LocationService.class);
+        this.startService(locationServiceIntent);
+        this.bindService(locationServiceIntent, locationServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -149,6 +210,20 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
         bundle.putString(CUR_CATCH_PARAM, prefs.getString(CUR_CATCH_PARAM, FishListFragment.class.toString()));
 
         return bundle;
+   }
+
+   private void insertNewFishAndEdit() {
+       Catch c = new Catch();
+       ContentResolver resolver = getContentResolver();
+       ContentValues values = CatchesTable.getContentValues(c);
+       Uri uri = resolver.insert(TagIt2Provider.Contract.CATCHES_URI, values);
+
+       String catchId = uri.getLastPathSegment();
+       try {
+           go(State.EDIT_CATCH, new JSONObject("{ id: " + catchId + "}"));
+       } catch (JSONException e) {
+           e.printStackTrace();
+       }
    }
 
     private void insertDummyFish() throws IOException {
@@ -268,18 +343,18 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
                 }
             }
 
+            Catch newCatch = new Catch();
+            newCatch.bait = bait;
+            newCatch.catchId = UUID.randomUUID().toString();
+            newCatch.fisher = fisher;
+            newCatch.species = thisSpecies;
+            newCatch.length = 20 + random.nextInt(30);
+            newCatch.weight = 0.5f + random.nextInt(1000)/1000.0f;
+            newCatch.locationDescription = featureName;
+            newCatch.latitude = location.latitude;
+            newCatch.longitude = location.longitude;
             // now that we have everything, let's stick in a catch
-            values = new ContentValues();
-            values.put(CatchesTable.COL_BAIT, bait);
-            values.put(CatchesTable.COL_CATCH_ID, UUID.randomUUID().toString());
-            values.put(CatchesTable.COL_FISHER, fisher);
-            values.put(CatchesTable.COL_SPECIES, thisSpecies);
-            values.put(CatchesTable.COL_LENGTH, random.nextInt(30));
-            values.put(CatchesTable.COL_WEIGHT, random.nextInt(1000)/1000.0f);
-            values.put(CatchesTable.COL_LOCATION_DESC, featureName);
-            values.put(CatchesTable.COL_LATITUDE, location.latitude);
-            values.put(CatchesTable.COL_LONGITUDE, location.longitude);
-            values.put(CatchesTable.COL_TIMESTAMP, (new Date()).getTime());
+            values = CatchesTable.getContentValues(newCatch);
             resolver.insert(TagIt2Provider.Contract.CATCHES_URI, values);
         }
     }
@@ -319,7 +394,16 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
                 break;
 
             default:
-                super.onBackPressed();
+                long last = prefs.getLastBackPressTime();
+                long now = System.currentTimeMillis();
+                if (now - last < 2000) {
+                    finish();
+                } else {
+                    View v = findViewById(R.id.main_frame);
+                    Snackbar.make(v, "Press back again to exit", Snackbar.LENGTH_LONG)
+                            .setAction("Action", null).show();
+                    prefs.setLastBackPressTime(now);
+                }
                 break;
         }
     }
@@ -398,5 +482,82 @@ public class MainActivity extends AppCompatActivity implements IStateManager, Go
 
         Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient);
         startActivityForResult(signInIntent, RC_SIGN_IN);
+    }
+
+    private ServiceConnection locationServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            locationServiceBinder = (LocationService.LocationServiceBinder)service;
+            locationServiceBinder.setLocationChangedListener(MainActivity.this);
+
+            GpsStatus status = locationServiceBinder.getCurrentStatus();
+            Location location = locationServiceBinder.getCurrentLocation();
+
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+
+        }
+    };
+
+    public LocationService.LocationServiceBinder getLocationServiceBinder() { return locationServiceBinder; }
+
+    @Override
+    public void onLocationChanged(Location location)  {
+
+        setAccuracy(location.getAccuracy());
+
+        SharedPrefsHelper prefs = new SharedPrefsHelper(this);
+        Catch currentCatch = prefs.getCurrentCatch();
+        if (currentCatch != null && currentCatch.latitude == 0) {
+            currentCatch.setPosition(location);
+
+            ContentResolver resolver = getContentResolver();
+            ContentValues values = CatchesTable.getContentValues(currentCatch);
+            // update the location only
+            resolver.update(prefs.getCurrentCatchUri(), values, null, null);
+
+            AsyncGeocoder ag = new AsyncGeocoder(this);
+            ag.execute(currentCatch);
+        }
+    }
+
+    private void setStatus(GpsStatus status) {
+        gpsStatus = status;
+        if (status == null)
+            imageStatus.setImageResource(android.R.drawable.presence_busy);
+        else {
+            if (status.getTimeToFirstFix() == 0) {
+                textAccuracy.setText(String.format("%d satellites", Iterators.size(gpsStatus.getSatellites().iterator())));
+                imageStatus.setImageResource(android.R.drawable.presence_away);
+            } else
+                imageStatus.setImageResource(android.R.drawable.presence_online);
+        }
+    }
+
+    public void setAccuracy(double accuracy) {
+
+        int count= 0;
+        if (gpsStatus != null && gpsStatus.getTimeToFirstFix() == 0) {
+            imageFixStatus.setImageResource(android.R.drawable.presence_busy);
+            textAccuracy.setText(String.format("%d satellites", Iterators.size(gpsStatus.getSatellites().iterator())));
+        } else {
+            if (locationServiceBinder.hasValidLocation())
+                imageFixStatus.setImageResource(android.R.drawable.presence_online);
+            else
+                imageFixStatus.setImageResource(android.R.drawable.presence_away);
+            textAccuracy.setText(String.format("± %.0fm", accuracy));
+        }
+    }
+
+    @Override
+    public void onStatusChanged(GpsStatus status) {
+        setStatus(status);
+    }
+
+    @Override
+    public void onAccuracyChanged(double accuracy) {
+        setAccuracy(accuracy);
     }
 }

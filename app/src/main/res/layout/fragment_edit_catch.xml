@@ -52,24 +52,58 @@
             android:layout_height="wrap_content">
 
             <TextView
-                android:id="@+id/text_fisher"
+                android:id="@+id/text_location"
                 style="@style/EditFishTextBox"
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintRight_toRightOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
+            <ImageButton
+                android:id="@+id/btn_add_fisher"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/ic_input_add"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/text_fisher"
+                app:layout_constraintBottom_toBottomOf="@+id/text_fisher"/>
+
+            <TextView
+                android:id="@+id/text_fisher"
+                style="@style/EditFishTextBox"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toLeftOf="@+id/btn_add_fisher"
+                app:layout_constraintTop_toBottomOf="@+id/text_location" />
+
+            <ImageButton
+                android:id="@+id/btn_add_species"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/ic_input_add"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/text_species"
+                app:layout_constraintBottom_toBottomOf="@+id/text_species"/>
+
             <TextView
                 android:id="@+id/text_species"
                 style="@style/EditFishTextBox"
                 app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintRight_toLeftOf="@id/btn_add_species"
                 app:layout_constraintTop_toBottomOf="@+id/text_fisher" />
+
+            <ImageButton
+                android:id="@+id/btn_add_bait"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/ic_input_add"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/text_bait"
+                app:layout_constraintBottom_toBottomOf="@+id/text_bait"/>
 
             <TextView
                 android:id="@+id/text_bait"
                 style="@style/EditFishTextBox"
                 app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintRight_toLeftOf="@id/btn_add_bait"
                 app:layout_constraintTop_toBottomOf="@+id/text_species" />
 
             <TextView

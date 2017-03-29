@@ -21,7 +21,7 @@ public class BaitsTable extends BaseDatabaseTable {
             + COLSPEC_IS_SYNCED + ", "
             + COLSPEC_LAST_MODIFIED + ", "
             + COLSPEC_BAIT_ID + ", "
-            + COLSPEC_NAME
+            + COLSPEC_NAME + ", "
             + COLSPEC_SELECTION_COUNT
             + ")";
 
@@ -38,8 +38,8 @@ public class BaitsTable extends BaseDatabaseTable {
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         super.onUpgrade(db, oldVersion, newVersion);
-       if (oldVersion < 3) {
-            db.execSQL("alter table " + TABLE_NAME + " add column " + COLSPEC_SELECTION_COUNT);
+       if (oldVersion < 6) {
+            db.execSQL("drop table " + TABLE_NAME);
         }
     }
 

@@ -68,24 +68,26 @@ public class FishCursorAdapter extends CursorAdapter {
 
         textSpecies.setText(species);
         textFisher.setText(fisher);
-        textDateTime.setText(sdf.format(new Date(datetime * 1000)));
+        textDateTime.setText(sdf.format(new Date(datetime * 1000L)));
         textLocation.setText(locationDesc);
         textLength.setText(String.format("%.0f cm", length));
         textWeight.setText(String.format("%.1f kg", weight));
+        Object o = imageView.getTag();
+        if (o instanceof ImageAsyncLoaderTag) {
+            imageView.setImageBitmap(null);
+            ImageAsyncLoaderTag currentTag = (ImageAsyncLoaderTag)o;
+            if (currentTag.bmp != null)
+                currentTag.bmp.recycle();
+        }
         if (imagePath != null) {
-            Object o = imageView.getTag();
-            if (o instanceof ImageAsyncLoaderTag) {
-                imageView.setImageBitmap(null);
-                ImageAsyncLoaderTag currentTag = (ImageAsyncLoaderTag)o;
-                if (currentTag.bmp != null)
-                    currentTag.bmp.recycle();
-            }
             ImageAsyncLoaderTag tag = new ImageAsyncLoaderTag(imagePath, imageView);
             imageView.setTag(tag);
             ImageAsyncLoader loader = new ImageAsyncLoader(context.getContentResolver(), imageView);
             loader.execute(BitmapHelper.getFileProviderUri(context, imagePath));
-        } else
+        } else {
+            ImageAsyncLoaderTag tag = new ImageAsyncLoaderTag(null, imageView);
+            imageView.setTag(tag);
             imageView.setImageBitmap(null);
-
+        }
     }
 }

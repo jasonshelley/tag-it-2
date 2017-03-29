@@ -12,7 +12,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class TagIt2DatabaseHelper extends SQLiteOpenHelper {
 
     public final static String DB_NAME = "tagit2.db";
-    public final static int VERSION = 5;
+    public final static int VERSION = 6;
 
     public final static IDatabaseTable[] _tables = new IDatabaseTable[] { new UsersTable(),
                                                                         new FishersTable(),

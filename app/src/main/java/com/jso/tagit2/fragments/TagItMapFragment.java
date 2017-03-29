@@ -22,6 +22,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
@@ -86,10 +87,12 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
 
             mapView = (MapView) v.findViewById(R.id.mapview);
             mapView.onCreate(savedInstanceState);
+            mapView.getMapAsync(this);
 
             args = savedInstanceState != null ? savedInstanceState : getArguments();
 
             selectedCatchId = args.getLong("CATCH_ID", -1);
+
             return v;
         } catch (Exception e) {
             return null;
@@ -141,8 +144,12 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
     private void MoveCamera(LatLng latlng, Boolean animate) {
         if (map == null)
             return;
+        CameraUpdate update = null;
+        if (map.getCameraPosition().zoom < 12)
+            update = CameraUpdateFactory.newLatLngZoom(latlng, 12);
+        else
+            update = CameraUpdateFactory.newLatLng(latlng);
 
-        CameraUpdate update = CameraUpdateFactory.newLatLng(latlng);
         if (animate) {
             if (isAnimating)
                 map.stopAnimation();
@@ -182,16 +189,16 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
         Activity activity = getActivity();
 
         MapsInitializer.initialize(activity);
-
-        mapView.getMapAsync(this);
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         // do map init stuff here
         map = googleMap;
-        map.getUiSettings().setZoomControlsEnabled(true);
+        UiSettings settings = map.getUiSettings();
+        settings.setZoomControlsEnabled(true);
 
+        map.setMapType(GoogleMap.MAP_TYPE_HYBRID);
 //        map.setOnMarkerClickListener(this);
 
         clusterManager = new ClusterManager<TagIt2ClusterItem>(this.getActivity(), map);
@@ -243,7 +250,6 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
                         double multiplier = Math.pow(2, v) / 10000.0;
 
                         Location.distanceBetween(zeroLocation.latitude, zeroLocation.longitude, idxLocation.latitude, idxLocation.longitude, distance);
-                        Log.i("Clustering", String.format("%f: %f, %f", multiplier, distance[0], distance[0]* multiplier));
 
                         if (distance[0] * multiplier < 500) {
                             cluster.addItem(itemsCopy.get(i));
@@ -275,7 +281,9 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
     @Override
     public void onResume() {
         super.onResume();
-        mapView.onResume();
+        if (mapView != null)
+            mapView.onResume();
+
         ContentResolver resolver = getActivity().getContentResolver();
         observer = new ContentObserver(new Handler(new Handler.Callback() {
             @Override

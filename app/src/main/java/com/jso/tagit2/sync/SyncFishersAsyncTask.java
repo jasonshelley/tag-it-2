@@ -59,6 +59,8 @@ public class SyncFishersAsyncTask extends AsyncTask<Object, String, String> {
 
         try {
             FishermanApi.GetModified mods = api.getModified(userId, lastSync);
+            if (mods == null)
+                return null;
             CollectionResponseFisherman response = mods.execute();
             List<Fisherman> fishers = response.getItems();
 

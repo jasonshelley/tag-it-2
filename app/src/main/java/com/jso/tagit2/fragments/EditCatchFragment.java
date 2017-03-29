@@ -1,5 +1,6 @@
 package com.jso.tagit2.fragments;
 
+import com.jso.tagit2.MainActivity;
 import com.jso.tagit2.models.Catch;
 
 import android.app.Activity;
@@ -7,29 +8,37 @@ import android.app.Dialog;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
+import android.renderscript.ScriptGroup;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.FileProvider;
 import android.support.v4.widget.ListPopupWindowCompat;
 import android.support.v4.widget.SimpleCursorAdapter;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.ListPopupWindow;
+import android.text.InputType;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.NumberPicker;
@@ -47,6 +56,8 @@ import com.jso.tagit2.database.IDatabaseTable;
 import com.jso.tagit2.database.SpeciesTable;
 import com.jso.tagit2.models.Catch;
 import com.jso.tagit2.provider.TagIt2Provider;
+import com.jso.tagit2.services.LocationService;
+import com.jso.tagit2.utils.AsyncGeocoder;
 import com.jso.tagit2.utils.BitmapHelper;
 import com.jso.tagit2.utils.ImageAsyncLoader;
 import com.jso.tagit2.utils.ImageAsyncSaver;
@@ -54,6 +65,7 @@ import com.jso.tagit2.utils.ImageAsyncSaver;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class EditCatchFragment extends Fragment {
@@ -65,7 +77,8 @@ public class EditCatchFragment extends Fragment {
 
     ContentObserver observer;
 
-    private Uri catchUri;
+    SharedPrefsHelper prefs;
+
     private long catchId;
 
     private View rootView;
@@ -89,7 +102,11 @@ public class EditCatchFragment extends Fragment {
     private TextView textWeight;
     private Dialog dialog;
 
+    private TextView textLocation;
+
     private ListPopupWindow currentPopup;
+
+    private MainActivity activity;
 
     public EditCatchFragment() {
         // Required empty public constructor
@@ -106,9 +123,14 @@ public class EditCatchFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        prefs = new SharedPrefsHelper(getContext());
+
         if (getArguments() != null) {
             catchId = getArguments().getLong(ARG_CATCH_ID);
-            catchUri = Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(catchId));
+
+            prefs.setCurrentCatchId(catchId);
+
             ContentResolver resolver = getActivity().getContentResolver();
             observer = new ContentObserver(new Handler(new Handler.Callback() {
                 @Override
@@ -123,7 +145,7 @@ public class EditCatchFragment extends Fragment {
                 }
             };
 
-            resolver.registerContentObserver(catchUri, true, observer);
+            resolver.registerContentObserver(prefs.getCurrentCatchUri(), true, observer);
         }
     }
 
@@ -139,19 +161,12 @@ public class EditCatchFragment extends Fragment {
     }
 
     private Catch getCurrentCatch() {
-        ContentResolver resolver = getContext().getContentResolver();
-        Cursor c = resolver.query(catchUri, TagIt2Provider.Contract.CATCHES_PROJECTION, null, null, null);
-        Catch currentCatch = null;
-        if (c.moveToFirst())
-            currentCatch = CatchesTable.fromCursor(c);
-        c.close();
-
-        return currentCatch;
+        return prefs.getCurrentCatch();
     }
 
     private void refreshView(View v) {
         final ContentResolver resolver = getContext().getContentResolver();
-        Catch currentCatch = getCurrentCatch();
+        final Catch currentCatch = getCurrentCatch();
 
         browseButton = (ImageButton) v.findViewById(R.id.btn_browse_image);
         browseButton.setOnClickListener(new View.OnClickListener() {
@@ -170,67 +185,24 @@ public class EditCatchFragment extends Fragment {
         });
 
         // Fisher
-        Cursor cursor = resolver.query(TagIt2Provider.Contract.FISHERS_URI,
-                TagIt2Provider.Contract.FISHER_PROJECTION,
-                null, null,
-                FishersTable.COL_NAME + " DESC");
-        ArrayList<CharSequence> array = new ArrayList<>();
-        while (cursor.moveToNext())
-            array.add(cursor.getString(cursor.getColumnIndex(FishersTable.COL_NAME)));
-        adapterFisher = new ArrayAdapter<CharSequence>(getContext(), R.layout.single_line, array);
-
         textFisher = (TextView) v.findViewById(R.id.text_fisher);
         if (currentCatch.fisher == null || currentCatch.fisher.isEmpty()) {
             textFisher.setText("Select a fisher...");
             textFisher.setBackgroundColor(0xFFFFB300);
         } else
             textFisher.setText(currentCatch.fisher);
-
-        listPopupFisher = getListPopup(textFisher, adapterFisher, new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String fisher = (String)adapterFisher.getItem(position);
-                saveParam(CatchesTable.COL_FISHER, fisher);
-                listPopupFisher.dismiss();
-            }
-        });
+            initFisherPopupWindow();
 
         // Species
-        cursor = resolver.query(TagIt2Provider.Contract.SPECIES_URI,
-                TagIt2Provider.Contract.SPECIES_PROJECTION,
-                null, null,
-                SpeciesTable.COL_NAME + " DESC");
-        array = new ArrayList<>();
-        while (cursor.moveToNext())
-            array.add(cursor.getString(cursor.getColumnIndex(SpeciesTable.COL_NAME)));
-        adapterSpecies = new ArrayAdapter<CharSequence>(getContext(), R.layout.single_line, array);
-
         textSpecies = (TextView) v.findViewById(R.id.text_species);
         if (currentCatch.species == null || currentCatch.species.isEmpty()) {
             textSpecies.setText("Select a species...");
             textSpecies.setBackgroundColor(0xFFFFB300);
         } else
             textSpecies.setText(currentCatch.species);
-
-        listPopupSpecies = getListPopup(textSpecies, adapterSpecies, new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String species = (String)adapterSpecies.getItem(position);
-                saveParam(CatchesTable.COL_SPECIES, species);
-                listPopupSpecies.dismiss();
-            }
-        });
+        initSpeciesPopupWindow();
 
         // Bait
-        cursor = resolver.query(TagIt2Provider.Contract.BAITS_URI,
-                TagIt2Provider.Contract.BAIT_PROJECTION,
-                null, null,
-                BaitsTable.COL_NAME + " DESC");
-        array = new ArrayList<>();
-        while (cursor.moveToNext())
-            array.add(cursor.getString(cursor.getColumnIndex(BaitsTable.COL_NAME)));
-        adapterBait = new ArrayAdapter<CharSequence>(getContext(), R.layout.single_line, array);
-
         textBait = (TextView) v.findViewById(R.id.text_bait);
         if (currentCatch.bait == null || currentCatch.bait.isEmpty()) {
             textBait.setText("Select a bait...");
@@ -238,28 +210,20 @@ public class EditCatchFragment extends Fragment {
         } else {
             textBait.setText(currentCatch.bait);
         }
-
-        listPopupBait = getListPopup(textBait, adapterBait, new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String bait = (String)adapterBait.getItem(position);
-                saveParam(CatchesTable.COL_BAIT, bait);
-                listPopupBait.dismiss();
-            }
-        });
+        initBaitPopupWindow();
 
         textLength = (TextView)v.findViewById(R.id.text_length);
         textLength.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showNumericPopup("Length", new INumberPicked() {
-                    @Override
-                    public void onNumberPicked(int val) {
-                        saveParam(CatchesTable.COL_LENGTH, (double)val);
-                    }
-                }, 5, 200, (int)getCurrentCatch().length, lengthFormatter);
+                showEditDialog(InputType.TYPE_CLASS_NUMBER,
+                        "Update Length",
+                        "Update the length of your catch for posterity...",
+                        CatchesTable.TABLE_NAME,
+                        CatchesTable.COL_LENGTH);
             }
         });
+
         if (currentCatch.length == 0) {
             textLength.setText("Add a length...");
             textLength.setBackgroundColor(0xFFFFB300);
@@ -275,12 +239,11 @@ public class EditCatchFragment extends Fragment {
         textWeight.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showNumericPopup("Weight", new INumberPicked() {
-                    @Override
-                    public void onNumberPicked(int val) {
-                        saveParam(CatchesTable.COL_WEIGHT, (double)val / 10);
-                    }
-                }, 1, 200, getCurrentCatch().weight  == 0 ? 10 : (int)(getCurrentCatch().weight* 10), weightFormatter); // units of 100g
+                showEditDialog(InputType.TYPE_CLASS_NUMBER,
+                        "Update Length",
+                        "Update the length of your catch for posterity...",
+                        CatchesTable.TABLE_NAME,
+                        CatchesTable.COL_LENGTH);
             }
         });
 
@@ -292,6 +255,188 @@ public class EditCatchFragment extends Fragment {
             loader.execute(BitmapHelper.getFileProviderUri(getContext(), imagePath));
         } else
             imageView.setImageBitmap(null);
+
+        if (currentCatch.latitude == 0) {
+            LocationService.LocationServiceBinder binder = activity.getLocationServiceBinder();
+            if (binder != null) {
+                if (binder.hasValidLocation()) {   // if we've got a valid location, use it. Otherwise wait for a better one
+                    Location location = binder.getCurrentLocation();
+                    currentCatch.latitude = location.getLatitude();
+                    currentCatch.longitude = location.getLongitude();
+
+                    resolver.update(prefs.getCurrentCatchUri(), CatchesTable.getContentValues(currentCatch), null, null);
+
+                    AsyncGeocoder ag = new AsyncGeocoder(activity);
+                    ag.execute(currentCatch);
+                }
+            }
+        }
+
+        textLocation = (TextView)v.findViewById(R.id.text_location);
+        if (currentCatch.locationDescription == null || currentCatch.locationDescription.isEmpty())
+            textLocation.setText("Acquiring...");
+        else
+            textLocation.setText(currentCatch.locationDescription);
+
+        ImageButton btn_add_species = (ImageButton)v.findViewById(R.id.btn_add_species);
+        btn_add_species.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showEditDialog(InputType.TYPE_CLASS_TEXT,
+                        "Add a species",
+                        "Add a species to your list so you can select it faster next time...",
+                        SpeciesTable.TABLE_NAME,
+                        SpeciesTable.COL_NAME);
+            }
+        });
+
+        ImageButton btn_add_fisher = (ImageButton)v.findViewById(R.id.btn_add_fisher);
+        btn_add_fisher.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showEditDialog(InputType.TYPE_CLASS_TEXT,
+                        "Add a fisher",
+                        "Add a fisher to your list so you can select them faster next time...",
+                        FishersTable.TABLE_NAME,
+                        FishersTable.COL_NAME);
+            }
+        });
+        ImageButton btn_add_bait = (ImageButton)v.findViewById(R.id.btn_add_bait);
+        btn_add_bait.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showEditDialog(InputType.TYPE_CLASS_TEXT,
+                        "Add a bait",
+                        "Add a bait to your list so you can select it faster next time...",
+                        BaitsTable.TABLE_NAME,
+                        BaitsTable.COL_NAME);
+            }
+        });
+    }
+
+    private void initFisherPopupWindow() {
+        ContentResolver resolver = getContext().getContentResolver();
+        
+        Cursor cursor = resolver.query(TagIt2Provider.Contract.FISHERS_URI,
+                TagIt2Provider.Contract.FISHER_PROJECTION,
+                null, null,
+                FishersTable.COL_NAME + " DESC");
+        ArrayList<CharSequence> array = new ArrayList<>();
+        while (cursor.moveToNext())
+            array.add(cursor.getString(cursor.getColumnIndex(FishersTable.COL_NAME)));
+        adapterFisher = new ArrayAdapter<CharSequence>(getContext(), R.layout.single_line, array);
+
+        listPopupFisher = getListPopup(textFisher, adapterFisher, new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String fisher = (String)adapterFisher.getItem(position);
+                saveParam(CatchesTable.COL_FISHER, fisher);
+                listPopupFisher.dismiss();
+            }
+        });
+    }
+
+    private void initSpeciesPopupWindow() {
+        ContentResolver resolver = getContext().getContentResolver();
+
+        Cursor cursor = resolver.query(TagIt2Provider.Contract.SPECIES_URI,
+                TagIt2Provider.Contract.SPECIES_PROJECTION,
+                null, null,
+                SpeciesTable.COL_NAME + " DESC");
+        ArrayList<CharSequence> array = new ArrayList<>();
+        while (cursor.moveToNext())
+            array.add(cursor.getString(cursor.getColumnIndex(SpeciesTable.COL_NAME)));
+        adapterSpecies = new ArrayAdapter<CharSequence>(getContext(), R.layout.single_line, array);
+
+        listPopupSpecies = getListPopup(textSpecies, adapterSpecies, new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String species = (String)adapterSpecies.getItem(position);
+                saveParam(CatchesTable.COL_SPECIES, species);
+                listPopupSpecies.dismiss();
+            }
+        });
+    }
+
+    private void initBaitPopupWindow() {
+        ContentResolver resolver = getContext().getContentResolver();
+
+        Cursor cursor = resolver.query(TagIt2Provider.Contract.BAITS_URI,
+                TagIt2Provider.Contract.BAIT_PROJECTION,
+                null, null,
+                BaitsTable.COL_NAME + " DESC");
+        ArrayList<CharSequence> array = new ArrayList<>();
+        while (cursor.moveToNext())
+            array.add(cursor.getString(cursor.getColumnIndex(BaitsTable.COL_NAME)));
+        adapterBait = new ArrayAdapter<CharSequence>(getContext(), R.layout.single_line, array);
+
+        listPopupBait = getListPopup(textBait, adapterBait, new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String bait = (String)adapterBait.getItem(position);
+                saveParam(CatchesTable.COL_BAIT, bait);
+                listPopupBait.dismiss();
+            }
+        });
+    }
+
+
+    private void showEditDialog(final int inputType, String title, String msg, final String tableName, final String column) {
+        AlertDialog.Builder alert = new AlertDialog.Builder(getContext());
+        alert.setTitle(title);
+        alert.setMessage(msg);
+
+        // Set an EditText view to get user input
+        final EditText input = new EditText(getContext());
+        input.setInputType(inputType);
+        input.requestFocus();
+        alert.setView(input);
+
+        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                String value = input.getText().toString();
+                int nvalue = Integer.parseInt(value);
+                ContentValues values = new ContentValues();
+                values.put(IDatabaseTable.COL_LAST_MODIFIED, System.currentTimeMillis());
+                values.put(IDatabaseTable.COL_IS_SYNCED, 0);
+                if (inputType == InputType.TYPE_CLASS_NUMBER)
+                    values.put(column, nvalue);
+                else
+                    values.put(column, value);
+
+                ContentResolver resolver = getActivity().getContentResolver();
+                if (tableName == FishersTable.TABLE_NAME) {
+                    resolver.insert(TagIt2Provider.Contract.FISHERS_URI, values);
+                    initFisherPopupWindow();
+                } else if (tableName == BaitsTable.TABLE_NAME) {
+                    resolver.insert(TagIt2Provider.Contract.BAITS_URI, values);
+                    initBaitPopupWindow();
+                } else if (tableName == SpeciesTable.TABLE_NAME) {
+                    resolver.insert(TagIt2Provider.Contract.SPECIES_URI, values);
+                    initSpeciesPopupWindow();
+                } else if (tableName == CatchesTable.TABLE_NAME) {
+                    resolver.update(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(catchId)),
+                            values, null, null);
+                } else if (tableName == CatchesTable.TABLE_NAME) {
+                    resolver.update(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(catchId)),
+                            values, null, null);
+                }
+            }
+        });
+
+        alert.setNegativeButton("Cancel",
+                new DialogInterface.OnClickListener() {
+
+                    public void onClick(DialogInterface dialog, int which) {
+                        return;
+                    }
+                });
+
+        Dialog d = alert.create();
+
+        d.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+
+        d.show();
     }
 
     NumberPicker.Formatter lengthFormatter = new NumberPicker.Formatter() {
@@ -464,8 +609,15 @@ public class EditCatchFragment extends Fragment {
 
 
     @Override
-    public void onAttach(Context context) {
+    public void onAttach(Context context)
+    {
         super.onAttach(context);
+
+        if (context instanceof MainActivity) {
+            activity = (MainActivity)context;
+        } else {
+            throw new RuntimeException("context must be an instance of MainActivity");
+        }
     }
 
     @Override

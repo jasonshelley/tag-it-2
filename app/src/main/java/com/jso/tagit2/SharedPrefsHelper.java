@@ -1,12 +1,17 @@
 package com.jso.tagit2;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.net.Uri;
 
 import com.google.gson.Gson;
+import com.jso.tagit2.database.CatchesTable;
+import com.jso.tagit2.models.Catch;
 import com.jso.tagit2.models.State;
 import com.jso.tagit2.models.User;
+import com.jso.tagit2.provider.TagIt2Provider;
 
 import org.json.JSONObject;
 
@@ -65,6 +70,40 @@ public class SharedPrefsHelper {
 
     public Uri getNewPhotoUri() {
         return getPreference("NewPhotoPath", Uri.class, null);
+    }
+
+    public long getLastBackPressTime() {
+        return getPreference("LastBackPressTime", Long.class, 0L);
+    }
+
+    public void setLastBackPressTime(long time){
+        setPreference("LastBackPressTime", time);
+    }
+
+    public Catch getCurrentCatch()
+    {
+        long id = getPreference("CurrentCatchId", Long.class, -1L);
+        if (id == -1)
+            return null;
+
+        ContentResolver resolver = context.getContentResolver();
+        Cursor c = resolver.query(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(id)),
+                TagIt2Provider.Contract.CATCHES_PROJECTION, null, null, null);
+        Catch currentCatch = null;
+        if (c.moveToFirst())
+            currentCatch = CatchesTable.fromCursor(c);
+        c.close();
+
+        return currentCatch;
+    }
+
+    public Uri getCurrentCatchUri() {
+        long id = getPreference("CurrentCatchId", Long.class, -1L);
+        return Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(id));
+    }
+
+    public void setCurrentCatchId(long id) {
+        setPreference("CurrentCatchId", id);
     }
 
     private void setPreference(String key, Object pref) {

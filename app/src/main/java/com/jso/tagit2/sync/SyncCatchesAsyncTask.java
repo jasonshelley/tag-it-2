@@ -56,11 +56,14 @@ public class SyncCatchesAsyncTask extends AsyncTask<Object, String, String> {
         FishApi api = bob.build();
 
         SharedPrefsHelper prefs = new SharedPrefsHelper(context);
-        long lastSync = prefs.getLastSync(FishersTable.TABLE_NAME);
+        long lastSync = prefs.getLastSync(CatchesTable.TABLE_NAME);
         String userId = prefs.getLoggedInUser().id;
 
         try {
             FishApi.GetModified mods = api.getModified(userId, lastSync);
+            if (mods == null)
+                return null;
+
             CollectionResponseFish response = mods.execute();
             List<Fish> fishes = response.getItems();
 

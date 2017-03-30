@@ -31,6 +31,7 @@ import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationRequest;
+import com.jso.tagit2.MainActivity;
 import com.jso.tagit2.R;
 import com.jso.tagit2.utils.LocationHelper;
 
@@ -60,7 +61,7 @@ public class LocationService extends Service implements LocationListener, GpsSta
     private int curMode = MODE_IDLE;
 
     private long INTERVAL_ACQUIRING = 1000;
-    private long INTERVAL_TRACKING = 15 * 1000;
+    private long INTERVAL_TRACKING = 30 * 1000;
 
     private long EXPIRY = 1 * 60 * 1000;
 
@@ -68,22 +69,11 @@ public class LocationService extends Service implements LocationListener, GpsSta
 
     public final static int REQUEST_STOP = 0x01;
 
+    public final static String ACTION_STOP = "stop";
+
     @Override
     public void onCreate() {
         super.onCreate();
-
-        PendingIntent stopIntent = PendingIntent.getService(this, REQUEST_STOP, new Intent(this, LocationService.class), 0);
-
-        notification = new NotificationCompat.Builder(this)
-                .setContentTitle("TagIt II Location Service")
-                .setTicker("TagIt II")
-                .setContentText("Ensuring the most accurate location for your catch.")
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
-                .build();
-
-        startForeground(1, notification);
     }
 
     @Override
@@ -94,13 +84,44 @@ public class LocationService extends Service implements LocationListener, GpsSta
             currentLocation.setTime(0);
         }
 
+        String action = intent.getAction();
+        if (action != null) {
+            if (action == ACTION_STOP) {
+                stopForeground(true);
+                stopSelf();
+
+                return START_NOT_STICKY;
+            }
+        }
 //        if (curMode == MODE_IDLE || System.currentTimeMillis() - currentLocation.getTime() > EXPIRY)
             requestLocationUpdates(MODE_ACQUIRING);
+
+
+        Intent stopIntent = new Intent(this, LocationService.class);
+        stopIntent.setAction(ACTION_STOP);
+        PendingIntent pendingIntent = PendingIntent.getService(this, REQUEST_STOP, stopIntent, 0);
+
+        Intent tagit2Intent = new Intent(this, MainActivity.class);
+        PendingIntent pendingTagIt2Intent = PendingIntent.getActivity(this, 0, tagit2Intent, 0);
+
+        notification = new NotificationCompat.Builder(this)
+                .setContentTitle("TagIt II Location Service")
+                .setTicker("TagIt II")
+                .setContentText("")
+                .setContentIntent(pendingTagIt2Intent)
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher))
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", pendingIntent)
+                .build();
+
+        startForeground(1, notification);
 
         return START_STICKY;
     }
 
     private void requestLocationUpdates(int mode) {
+        stopLocationUpdates();
+        Log.v("LocationService", "Starting location updates");
         curMode = mode;
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         long interval = mode == MODE_ACQUIRING ? INTERVAL_ACQUIRING : INTERVAL_TRACKING;
@@ -154,13 +175,13 @@ public class LocationService extends Service implements LocationListener, GpsSta
         if (newAcc <= ACCURACY_MIN) {
             if (distance >= 1 ||
                     newAcc < currentAcc ||
-                    currentLocation.getTime() - System.currentTimeMillis() > EXPIRY ||
+                    System.currentTimeMillis() - currentLocation.getTime() > EXPIRY ||
                     curMode == MODE_ACQUIRING) {
                 currentLocation = location;
                 currentAcc = currentLocation.getAccuracy();
                 binder.fireLocationChanged();
             }
-        } else {
+        } else if (System.currentTimeMillis() - currentLocation.getTime() > EXPIRY || currentAcc > ACCURACY_MIN){
             currentLocation = location;
             currentAcc = location.getAccuracy();
         }

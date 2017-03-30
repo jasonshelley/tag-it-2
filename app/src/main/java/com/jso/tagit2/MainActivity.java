@@ -150,6 +150,16 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+
+        if (locationServiceBinder != null) {
+            unbindService(locationServiceConnection);
+            locationServiceBinder = null;
+        }
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch (requestCode) {
             case PERMISSION_REQUEST_ACCESS_FINE_LOCATION:
@@ -497,7 +507,7 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-
+            unbindService(locationServiceConnection);
         }
     };
 
@@ -537,6 +547,12 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
     }
 
     public void setAccuracy(double accuracy) {
+        if (locationServiceBinder == null) {
+            imageFixStatus.setImageResource(android.R.drawable.presence_busy);
+            textAccuracy.setText("");
+
+            return;
+        }
 
         int count= 0;
         if (gpsStatus != null && gpsStatus.getTimeToFirstFix() == 0) {

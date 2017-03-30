@@ -9,7 +9,7 @@ import android.location.Location;
 
 public class LocationHelper {
     public static double distance(Location l1, Location l2) {
-        double r = 6378100; // earth radius in metres
+        double r = 6371; // earth radius in km
 
         double lat1 = Math.toRadians(l1.getLatitude());
         double lng1 = Math.toRadians(l1.getLongitude());
@@ -23,9 +23,9 @@ public class LocationHelper {
                    Math.sin(dLon/2) * Math.sin(dLon/2);
 
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        double d = r * c; // Distance in m
+        double d = r * c; // Distance in km
 
-        return d;
+        return d * 1000;
     }
 
 }

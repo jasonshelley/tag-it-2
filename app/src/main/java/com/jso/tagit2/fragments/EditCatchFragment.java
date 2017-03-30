@@ -160,13 +160,9 @@ public class EditCatchFragment extends Fragment {
         return rootView;
     }
 
-    private Catch getCurrentCatch() {
-        return prefs.getCurrentCatch();
-    }
-
     private void refreshView(View v) {
         final ContentResolver resolver = getContext().getContentResolver();
-        final Catch currentCatch = getCurrentCatch();
+        final Catch currentCatch = prefs.getCurrentCatch();
 
         browseButton = (ImageButton) v.findViewById(R.id.btn_browse_image);
         browseButton.setOnClickListener(new View.OnClickListener() {
@@ -320,7 +316,7 @@ public class EditCatchFragment extends Fragment {
         Cursor cursor = resolver.query(TagIt2Provider.Contract.FISHERS_URI,
                 TagIt2Provider.Contract.FISHER_PROJECTION,
                 null, null,
-                FishersTable.COL_NAME + " DESC");
+                FishersTable.COL_NAME + " ASC");
         ArrayList<CharSequence> array = new ArrayList<>();
         while (cursor.moveToNext())
             array.add(cursor.getString(cursor.getColumnIndex(FishersTable.COL_NAME)));
@@ -342,7 +338,7 @@ public class EditCatchFragment extends Fragment {
         Cursor cursor = resolver.query(TagIt2Provider.Contract.SPECIES_URI,
                 TagIt2Provider.Contract.SPECIES_PROJECTION,
                 null, null,
-                SpeciesTable.COL_NAME + " DESC");
+                SpeciesTable.COL_NAME + " ASC");
         ArrayList<CharSequence> array = new ArrayList<>();
         while (cursor.moveToNext())
             array.add(cursor.getString(cursor.getColumnIndex(SpeciesTable.COL_NAME)));
@@ -364,7 +360,7 @@ public class EditCatchFragment extends Fragment {
         Cursor cursor = resolver.query(TagIt2Provider.Contract.BAITS_URI,
                 TagIt2Provider.Contract.BAIT_PROJECTION,
                 null, null,
-                BaitsTable.COL_NAME + " DESC");
+                BaitsTable.COL_NAME + " ASC");
         ArrayList<CharSequence> array = new ArrayList<>();
         while (cursor.moveToNext())
             array.add(cursor.getString(cursor.getColumnIndex(BaitsTable.COL_NAME)));

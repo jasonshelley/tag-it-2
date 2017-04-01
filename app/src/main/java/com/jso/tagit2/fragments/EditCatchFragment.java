@@ -1,8 +1,5 @@
 package com.jso.tagit2.fragments;
 
-import com.jso.tagit2.MainActivity;
-import com.jso.tagit2.models.Catch;
-
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.ContentResolver;
@@ -12,9 +9,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.ContentObserver;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
@@ -22,33 +16,25 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
-import android.renderscript.ScriptGroup;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.FileProvider;
-import android.support.v4.widget.ListPopupWindowCompat;
-import android.support.v4.widget.SimpleCursorAdapter;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.ListPopupWindow;
 import android.text.InputType;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.NumberPicker;
-import android.widget.Spinner;
-import android.widget.SpinnerAdapter;
 import android.widget.TextView;
 
+import com.jso.tagit2.MainActivity;
 import com.jso.tagit2.R;
 import com.jso.tagit2.SharedPrefsHelper;
-import com.jso.tagit2.controllers.GenericListCursorAdapter;
 import com.jso.tagit2.database.BaitsTable;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.database.FishersTable;
@@ -65,8 +51,6 @@ import com.jso.tagit2.utils.ImageAsyncSaver;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 
 public class EditCatchFragment extends Fragment {
 
@@ -161,7 +145,10 @@ public class EditCatchFragment extends Fragment {
     }
 
     private void refreshView(View v) {
-        final ContentResolver resolver = getContext().getContentResolver();
+        Context context = getContext();
+        if (context == null)
+            return;
+        final ContentResolver resolver = context.getContentResolver();
         final Catch currentCatch = prefs.getCurrentCatch();
 
         browseButton = (ImageButton) v.findViewById(R.id.btn_browse_image);

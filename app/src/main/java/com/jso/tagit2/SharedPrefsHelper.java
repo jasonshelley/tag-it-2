@@ -65,11 +65,19 @@ public class SharedPrefsHelper {
     }
 
     public void setNewPhotoUri(Uri uri) {
-        setPreference("NewPhotoPath", uri);
+        setPreference("NewPhotoUri", uri.toString());
     }
 
     public Uri getNewPhotoUri() {
-        return getPreference("NewPhotoPath", Uri.class, null);
+        String path =  getPreference("NewPhotoUri", String.class, null);
+        Uri uri = null;
+        try {
+            uri = Uri.parse(path);
+        } catch (Exception e) {
+            return null;
+        }
+
+        return uri;
     }
 
     public long getLastBackPressTime() {

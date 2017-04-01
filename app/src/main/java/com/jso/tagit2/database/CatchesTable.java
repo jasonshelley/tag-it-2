@@ -51,6 +51,28 @@ public class CatchesTable extends BaseDatabaseTable {
     public static String COL_TIMESTAMP = "Timestamp";
     public static String COLSPEC_TIMETAMP = COL_TIMESTAMP + " INTEGER";
 
+    public static String SQL_UPDATE_SELECTION_COUNTS = " UPDATE " + BaitsTable.TABLE_NAME +
+            " SET " + BaitsTable.COL_SELECTION_COUNT +
+            " = (SELECT COUNT(*) FROM " + TABLE_NAME + " WHERE " + COL_BAIT + "=NEW." + COL_BAIT + ")" +
+            " WHERE " + BaitsTable.COL_NAME + " = NEW." + COL_BAIT +
+            " UPDATE " + SpeciesTable.TABLE_NAME +
+            " SET " + SpeciesTable.COL_SELECTION_COUNT +
+            " = (SELECT COUNT(*) FROM " + TABLE_NAME + " WHERE " + COL_SPECIES + "=NEW." + COL_SPECIES + ")" +
+            " WHERE " + SpeciesTable.COL_NAME + " = NEW." + COL_SPECIES +
+            " UPDATE " + FishersTable.TABLE_NAME +
+            " SET " + FishersTable.COL_SELECTION_COUNT +
+            " = (SELECT COUNT(*) FROM " + TABLE_NAME + " WHERE " + COL_FISHER + "=NEW." + COL_FISHER + ")" +
+            " WHERE " + FishersTable.COL_NAME + " = NEW." + COL_FISHER;
+    public static String AFTER_INSERT_TRIGGER = "CREATE TRIGGER after_insert_catch AFTER INSERT ON " + TABLE_NAME +
+            " BEGIN" +
+            SQL_UPDATE_SELECTION_COUNTS +
+            " END";
+
+    public static String AFTER_UPDATE_TRIGGER = "CREATE TRIGGER after_update_catch AFTER UPDATE ON " + TABLE_NAME +
+            " BEGIN" +
+            SQL_UPDATE_SELECTION_COUNTS +
+            " END";
+
     public static String TABLE_CREATE = "CREATE TABLE " + TABLE_NAME + " ( "
             + COLSPEC_ID + ", "
             + COLSPEC_IS_SYNCED + ", "
@@ -76,7 +98,10 @@ public class CatchesTable extends BaseDatabaseTable {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
+
         db.execSQL(TABLE_CREATE);
+        db.execSQL(AFTER_INSERT_TRIGGER);
+        db.execSQL(AFTER_UPDATE_TRIGGER);
     }
 
     @Override
@@ -86,6 +111,9 @@ public class CatchesTable extends BaseDatabaseTable {
         if (oldVersion < 5) {
             db.execSQL("DROP TABLE " + TABLE_NAME);
             onCreate(db);
+        } if (oldVersion < 7) {
+            db.execSQL(AFTER_INSERT_TRIGGER);
+            db.execSQL(AFTER_UPDATE_TRIGGER);
         }
     }
 

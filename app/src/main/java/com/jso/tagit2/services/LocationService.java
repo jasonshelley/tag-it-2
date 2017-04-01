@@ -1,49 +1,32 @@
 package com.jso.tagit2.services;
 
-import android.Manifest;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
-import android.location.GnssMeasurement;
-import android.location.GnssMeasurementsEvent;
-import android.location.GnssNavigationMessage;
 import android.location.GnssStatus;
 import android.location.GpsStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.location.LocationProvider;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.annotation.RequiresApi;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationRequest;
 import com.jso.tagit2.MainActivity;
 import com.jso.tagit2.R;
 import com.jso.tagit2.utils.LocationHelper;
-
-import java.util.Collection;
-import java.util.Date;
 
 
 /**
  * Created by jshelley on 26/03/2017.
  */
 
-@RequiresApi(api = Build.VERSION_CODES.N)
 public class LocationService extends Service implements LocationListener, GpsStatus.Listener
 {
 
@@ -52,6 +35,7 @@ public class LocationService extends Service implements LocationListener, GpsSta
     long lastLocationTimestamp;
     Location currentLocation;
     GpsStatus currentStatus;
+    GnssStatus currentGnssStatus;
 
     Notification notification;
 
@@ -84,13 +68,15 @@ public class LocationService extends Service implements LocationListener, GpsSta
             currentLocation.setTime(0);
         }
 
-        String action = intent.getAction();
-        if (action != null) {
-            if (action == ACTION_STOP) {
-                stopForeground(true);
-                stopSelf();
+        if (intent != null) {
+            String action = intent.getAction();
+            if (action != null) {
+                if (action == ACTION_STOP) {
+                    stopForeground(true);
+                    stopSelf();
 
-                return START_NOT_STICKY;
+                    return START_NOT_STICKY;
+                }
             }
         }
 //        if (curMode == MODE_IDLE || System.currentTimeMillis() - currentLocation.getTime() > EXPIRY)

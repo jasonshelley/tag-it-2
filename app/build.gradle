@@ -19,7 +19,7 @@ android {
     }
 }
 
-// Comment for testing github webhooks. 1.6
+// Comment for testing github webhooks. 1.7
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])

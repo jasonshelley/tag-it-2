@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.os.Environment;
 import android.support.v4.content.FileProvider;
 
 import java.io.File;
@@ -15,6 +16,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static java.security.AccessController.getContext;
 
 /**
  * Created by jshelley on 23/03/2017.
@@ -56,11 +59,16 @@ public class BitmapHelper {
         else return k;
     }
 
-    public static String getThumbnailPath(String imagePath) {
-        Matcher m = Pattern.compile("(.+2\\.\\w+.)(\\w+)").matcher(imagePath);
+    public static String getThumbnailPath(Context context, String imagePath) {
+        Matcher m = Pattern.compile(".+(tagit2\\.\\w+\\.)(\\w+)").matcher(imagePath);
 
-        if (m.find())
-            return m.group(1) + "thumbnail." + m.group(2);  // will always be png but may not for ever
+        File file = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+
+
+        if (m.find()) {
+            File image = new File(file.getPath(), m.group(1) + "thumbnail." + m.group(2));
+            return image.getPath();
+        }
 
         return imagePath;
     }
@@ -89,4 +97,5 @@ public class BitmapHelper {
         return String.format("tagit2.%s.jpg", timeStamp);
 
     }
+
 }

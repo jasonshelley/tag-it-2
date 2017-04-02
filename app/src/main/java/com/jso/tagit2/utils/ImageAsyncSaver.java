@@ -71,7 +71,7 @@ public class ImageAsyncSaver extends AsyncTask<Void, Void, Void> {
             }
 
             Bitmap thumbnail = BitmapHelper.resizeBitmap(context, uri, 256);
-            String thumbnailPath = BitmapHelper.getThumbnailPath(filePath);
+            String thumbnailPath = BitmapHelper.getThumbnailPath(context, filePath);
             File thumbnailFile = new File(thumbnailPath);
             Uri thumbnailUri = BitmapHelper.getFileProviderUri(context, thumbnailPath);
             OutputStream fos = resolver.openOutputStream(thumbnailUri);

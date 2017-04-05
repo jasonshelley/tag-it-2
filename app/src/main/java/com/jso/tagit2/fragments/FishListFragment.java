@@ -90,7 +90,7 @@ public class FishListFragment extends ListFragment implements OnItemClickListene
         selectedFishId = id;
 
         try {
-            stateManager.go(State.MAP, new JSONObject(String.format("{id: %s}", id)));
+            stateManager.go(State.MAP, new JSONObject(String.format("{id: %s}", id)), false);
         } catch (JSONException e) {
             e.printStackTrace();
         }

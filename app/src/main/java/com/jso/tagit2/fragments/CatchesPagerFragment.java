@@ -4,6 +4,9 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.database.ContentObserver;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -34,6 +37,8 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
 
     ContentObserver observer;
 
+    View rootView;
+
     public CatchesPagerFragment() {
         // Required empty public constructor
     }
@@ -55,16 +60,16 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View v =  inflater.inflate(R.layout.fragment_catch_pager, container, false);
+        rootView =  inflater.inflate(R.layout.fragment_catch_pager, container, false);
 
-        pager = (ViewPager)v.findViewById(R.id.catches_pager);
+        pager = (ViewPager)rootView.findViewById(R.id.catches_pager);
         adapter = new CatchesPagerAdapter(getContext(), getFragmentManager());
         adapter.init();
         pager.setAdapter(adapter);
 
         pager.addOnPageChangeListener(this);
 
-        return v;
+        return rootView;
     }
 
     @Override
@@ -93,6 +98,18 @@ public class CatchesPagerFragment extends Fragment implements ViewPager.OnPageCh
         ContentResolver resolver = getActivity().getContentResolver();
         if (observer != null)
             resolver.unregisterContentObserver(observer);
+
+        rootView.setBackground(new BitmapDrawable(loadBitmapFromView(rootView)));
+    }
+
+    private Bitmap loadBitmapFromView(View v) {
+        if (v.getMeasuredHeight() == 0 || v.getMeasuredWidth() == 0)
+            return null;
+        Bitmap b = Bitmap.createBitmap( v.getMeasuredWidth(), v.getMeasuredHeight(), Bitmap.Config.RGB_565);
+        Canvas c = new Canvas(b);
+        v.layout(v.getLeft(), v.getTop(), v.getRight(), v.getBottom());
+        v.draw(c);
+        return b;
     }
 
     public void setCatchId(long id)

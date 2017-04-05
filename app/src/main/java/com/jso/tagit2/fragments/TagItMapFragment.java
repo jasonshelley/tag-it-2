@@ -67,6 +67,8 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
 
     Map<TagIt2ClusterItem, Long> markerToCatchIdMap = new HashMap<>();
 
+    View rootView;
+
     Bundle args;
 
     public static TagItMapFragment newInstance(long catchId) {
@@ -83,9 +85,9 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
         try {
-            View v = inflater.inflate(R.layout.fragment_map, container, false);
+            rootView = inflater.inflate(R.layout.fragment_map, container, false);
 
-            mapView = (MapView) v.findViewById(R.id.mapview);
+            mapView = (MapView) rootView.findViewById(R.id.mapview);
             mapView.onCreate(savedInstanceState);
             mapView.getMapAsync(this);
 
@@ -93,7 +95,7 @@ public class TagItMapFragment extends Fragment implements OnMapReadyCallback,
 
             selectedCatchId = args.getLong("CATCH_ID", -1);
 
-            return v;
+            return rootView;
         } catch (Exception e) {
             return null;
         }

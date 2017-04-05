@@ -73,7 +73,7 @@ public class FishDetailsFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 try {
-                    stateManager.go(State.EDIT_CATCH, new JSONObject("{ id: " + catchId + "}"));
+                    stateManager.go(State.EDIT_CATCH, new JSONObject("{ id: " + catchId + "}"), false);
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }

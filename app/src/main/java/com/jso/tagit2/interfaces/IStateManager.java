@@ -9,5 +9,5 @@ import org.json.JSONObject;
 
 public interface IStateManager {
 
-    void go(int newState, JSONObject args) throws JSONException;
+    void go(int newState, JSONObject args, boolean back) throws JSONException;
 }

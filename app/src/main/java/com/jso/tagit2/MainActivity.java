@@ -33,6 +33,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -51,6 +52,7 @@ import com.jso.tagit2.database.SpeciesTable;
 import com.jso.tagit2.fragments.EditCatchFragment;
 import com.jso.tagit2.fragments.FishListFragment;
 import com.jso.tagit2.fragments.LoginFragment;
+import com.jso.tagit2.fragments.QrMeasurementFragment;
 import com.jso.tagit2.fragments.TagItMapFragment;
 import com.jso.tagit2.interfaces.IGoogleApiClient;
 import com.jso.tagit2.interfaces.IStateManager;
@@ -117,6 +119,9 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
                         .setAction("Action", null).show();
             }
         });
+
+        View v = findViewById(R.id.main_frame);
+        v.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
 /*
         ContentResolver resolver = getContentResolver();
         resolver.delete(TagIt2Provider.Contract.BAITS_URI, null, null);
@@ -124,29 +129,43 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
         resolver.delete(TagIt2Provider.Contract.FISHERS_URI, null, null);
         resolver.delete(TagIt2Provider.Contract.CATCHES_URI, null, null);
 */
-        SharedPrefsHelper prefs = new SharedPrefsHelper(this);
-        State savedState = prefs.getState();
-        User user = prefs.getLoggedInUser();
-        if (!user.isLoggedIn())
-            savedState.state = State.LOGIN;
-
-        go(savedState.state, savedState.args);
-
-        if (user.isLoggedIn()) {
-            SyncManager sm = SyncManager.getInstance(this);
-            sm.sync();
-        }
     }
+
+    ViewTreeObserver.OnGlobalLayoutListener layoutListener = new ViewTreeObserver.OnGlobalLayoutListener() {
+        @Override
+        public void onGlobalLayout() {
+            View v = findViewById(R.id.main_frame);
+            v.getViewTreeObserver().removeOnGlobalLayoutListener(layoutListener);
+
+            SharedPrefsHelper prefs = new SharedPrefsHelper(MainActivity.this);
+            State savedState = prefs.getState();
+            User user = prefs.getLoggedInUser();
+            if (!user.isLoggedIn())
+                savedState.state = State.LOGIN;
+
+            go(savedState.state, savedState.args, false);
+
+            if (user.isLoggedIn()) {
+                SyncManager sm = SyncManager.getInstance(MainActivity.this);
+                sm.sync();
+            }
+
+            int permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION);
+            if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_ACCESS_FINE_LOCATION);
+            } else {
+                startLocationService();
+            }
+
+            View logo = findViewById(R.id.image_logo);
+            logo.setVisibility(View.GONE);
+        }
+    };
 
     @Override
     protected void onResume() {
         super.onResume();
-        int permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION);
-        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_ACCESS_FINE_LOCATION);
-        } else {
-            startLocationService();
-        }
+
     }
 
     @Override
@@ -203,7 +222,7 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
             SyncManager sm = SyncManager.getInstance(this);
             sm.sync();
 
-            go(State.CATCH_LIST, null);
+            go(State.CATCH_LIST, null, false);
         } else {
         }
     }
@@ -230,7 +249,7 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
 
        String catchId = uri.getLastPathSegment();
        try {
-           go(State.EDIT_CATCH, new JSONObject("{ id: " + catchId + "}"));
+           go(State.EDIT_CATCH, new JSONObject("{ id: " + catchId + "}"), false);
        } catch (JSONException e) {
            e.printStackTrace();
        }
@@ -388,6 +407,10 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
             return true;
         }
 
+        if (id == R.id.action_measure) {
+            swapFragments(QrMeasurementFragment.newInstance(), false);
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -397,10 +420,10 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
         State state = prefs.getState();
         switch (state.state) {
             case State.MAP:
-                go(State.CATCH_LIST, null);
+                go(State.CATCH_LIST, null, true);
                 break;
             case State.EDIT_CATCH:
-                go(State.MAP, state.args);  // same arg
+                go(State.MAP, state.args, true);  // same arg
                 break;
 
             default:
@@ -418,42 +441,61 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
         }
     }
 
-    private void swapFragments(Fragment newFragment)
+    private void swapFragments(Fragment newFragment, boolean back)
     {
         FragmentManager fm = getSupportFragmentManager();
 
         FragmentTransaction ft =  fm.beginTransaction();
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
+
+        if (newFragment instanceof EditCatchFragment) {
+            // can only be forward
+            ft.setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_up);
+        } else if (newFragment instanceof TagItMapFragment) {
+            if (back)   // we're coming from the edit catch fragment
+                ft.setCustomAnimations(R.anim.slide_in_down, R.anim.slide_out_down);
+            else
+                ft.setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left);
+        } else if (newFragment instanceof FishListFragment) {
+            if (back)   // we're coming from the map fragment
+                ft.setCustomAnimations(R.anim.slide_in_left, R.anim.slide_out_right);
+            else    // we're coming from the login fragment
+                ft.setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left);
+        } else {
+            if (!back)
+                ft.setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left);
+            else
+                ft.setCustomAnimations(R.anim.slide_in_left, R.anim.slide_out_right);
+        }
 
         ft.replace(R.id.fragment_container, newFragment);
 
-        ft.addToBackStack(null);
+//        ft.addToBackStack(null);
 
         ft.commit();
     }
 
     @Override
-    public void go(int newState, JSONObject args) {
+    public void go(int newState, JSONObject args, boolean back) {
 
         long catchId;
         try {
             switch (newState) {
                 case State.LOGIN:
-                    swapFragments(LoginFragment.newInstance());
+                    swapFragments(LoginFragment.newInstance(), back);
                     break;
 
                 case State.CATCH_LIST:
-                    swapFragments(FishListFragment.newInstance());
+                    swapFragments(FishListFragment.newInstance(), back);
                     break;
 
                 case State.MAP:
                     catchId = args.getLong("id");
-                    swapFragments(TagItMapFragment.newInstance(catchId));
+                    swapFragments(TagItMapFragment.newInstance(catchId), back);
                     break;
 
                 case State.EDIT_CATCH:
                     catchId = args.getLong("id");
-                    swapFragments(EditCatchFragment.newInstance(catchId));
+                    swapFragments(EditCatchFragment.newInstance(catchId), back);
                     break;
             }
         }
@@ -515,6 +557,9 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
 
     @Override
     public void onLocationChanged(Location location)  {
+
+        if (location == null)
+            return;
 
         setAccuracy(location.getAccuracy());
 

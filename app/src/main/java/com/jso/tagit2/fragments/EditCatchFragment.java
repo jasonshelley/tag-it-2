@@ -378,13 +378,13 @@ public class EditCatchFragment extends Fragment {
         alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 String value = input.getText().toString();
-                int nvalue = Integer.parseInt(value);
                 ContentValues values = new ContentValues();
                 values.put(IDatabaseTable.COL_LAST_MODIFIED, System.currentTimeMillis());
                 values.put(IDatabaseTable.COL_IS_SYNCED, 0);
-                if (inputType == InputType.TYPE_CLASS_NUMBER)
+                if (inputType == InputType.TYPE_CLASS_NUMBER) {
+                    int nvalue = Integer.parseInt(value);
                     values.put(column, nvalue);
-                else
+                }else
                     values.put(column, value);
 
                 ContentResolver resolver = getActivity().getContentResolver();

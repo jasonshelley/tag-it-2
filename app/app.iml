@@ -114,6 +114,7 @@
     <orderEntry type="library" exported="" name="design-25.2.0" level="project" />
     <orderEntry type="library" exported="" name="palette-v7-24.0.0" level="project" />
     <orderEntry type="library" exported="" name="firebase-database-connection-9.8.0" level="project" />
+    <orderEntry type="library" exported="" name="cardview-v7-25.2.0" level="project" />
     <orderEntry type="library" exported="" name="play-services-panorama-9.8.0" level="project" />
     <orderEntry type="library" exported="" name="play-services-drive-9.8.0" level="project" />
     <orderEntry type="library" exported="" name="firebase-common-9.8.0" level="project" />
@@ -192,6 +193,7 @@
     <orderEntry type="library" exported="" name="support-annotations-25.2.0" level="project" />
     <orderEntry type="library" exported="" name="support-vector-drawable-25.2.0" level="project" />
     <orderEntry type="library" exported="" name="firebase-crash-9.8.0" level="project" />
+    <orderEntry type="module" module-name="image-processor-jni" exported="" />
     <orderEntry type="module" module-name="backend" exported="" />
   </component>
 </module>

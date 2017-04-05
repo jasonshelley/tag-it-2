@@ -1,10 +1,9 @@
 <resources>
     <string name="app_name">TagIt II</string>
     <string name="action_settings">Settings</string>
+    <string name="action_measure">Measure</string>
     <string name="no_catches_recorded">No catches recorded...\nGet fishing!!</string>
 
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="service_notification_label">TagIt2 Location Service</string>
     <string name="service_notification_desc">Ensuring the most accurate location for your catches...</string>
 </resources>

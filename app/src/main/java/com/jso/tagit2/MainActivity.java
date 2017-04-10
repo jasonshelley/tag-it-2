@@ -408,7 +408,12 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
         }
 
         if (id == R.id.action_measure) {
-            swapFragments(QrMeasurementFragment.newInstance(), false);
+            Catch c = new SharedPrefsHelper(this).getCurrentCatch();
+            try {
+                go(State.MEASURE, new JSONObject("{id:" +  String.valueOf(c._id) + "}"), false);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
 
         return super.onOptionsItemSelected(item);
@@ -423,6 +428,10 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
                 go(State.CATCH_LIST, null, true);
                 break;
             case State.EDIT_CATCH:
+                go(State.MAP, state.args, true);  // same arg
+                break;
+
+            case State.MEASURE:
                 go(State.MAP, state.args, true);  // same arg
                 break;
 
@@ -496,6 +505,11 @@ public class MainActivity extends AppCompatActivity implements IStateManager,
                 case State.EDIT_CATCH:
                     catchId = args.getLong("id");
                     swapFragments(EditCatchFragment.newInstance(catchId), back);
+                    break;
+
+                case State.MEASURE:
+                    catchId = args.getLong("id");
+                    swapFragments(QrMeasurementFragment.newInstance(catchId), false);
                     break;
             }
         }

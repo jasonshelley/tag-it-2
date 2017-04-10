@@ -1,9 +1,12 @@
 package com.jso.tagit2.fragments;
 
 import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.media.ImageWriter;
+import android.net.Uri;
 import android.support.v4.app.Fragment;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -37,8 +40,15 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.jso.tagit2.R;
+import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.imageprocessing.ImageProcessor;
 import com.jso.tagit2.imageprocessing.MinMax;
+import com.jso.tagit2.interfaces.IStateManager;
+import com.jso.tagit2.models.State;
+import com.jso.tagit2.provider.TagIt2Provider;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -46,6 +56,9 @@ import java.util.Arrays;
 
 public class QrMeasurementFragment extends Fragment {
     final static String TAG = "QrMeasurementFragment";
+    final static String ARG_CATCH_ID = "catchId";
+
+    IStateManager stateManager;
 
     private Button takePictureButton;
     private TextureView textureView;
@@ -69,8 +82,18 @@ public class QrMeasurementFragment extends Fragment {
     private boolean mFlashSupported;
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
+    Bundle args;
+    long selectedCatchId;
 
     public QrMeasurementFragment() {
+    }
+
+    public static QrMeasurementFragment newInstance(long catchId) {
+        QrMeasurementFragment fragment = new QrMeasurementFragment();
+        Bundle args = new Bundle();
+        args.putLong(ARG_CATCH_ID, catchId);
+        fragment.setArguments(args);
+        return fragment;
     }
 
     public static QrMeasurementFragment newInstance() {
@@ -85,6 +108,10 @@ public class QrMeasurementFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
+        args = savedInstanceState != null ? savedInstanceState : getArguments();
+        selectedCatchId = args.getLong(ARG_CATCH_ID, -1);
+
         // Inflate the layout for this fragment
         View v = inflater.inflate(R.layout.fragment_qr_measurement, container, false);
 
@@ -160,27 +187,21 @@ public class QrMeasurementFragment extends Fragment {
             texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
             Surface surface = new Surface(texture);
 
-            ImageReader reader = ImageReader.newInstance(imageDimension.getWidth(), imageDimension.getHeight(), ImageFormat.YUV_420_888, 2);
-            Surface readerSurface = reader.getSurface();
+            imageReader = ImageReader.newInstance(imageDimension.getWidth(), imageDimension.getHeight(), ImageFormat.YUV_420_888, 2);
+            Surface readerSurface = imageReader.getSurface();
 
-            reader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+            imageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
                     final Image img = reader.acquireLatestImage();
                     if (img != null) {
                         processImage(img);
                         img.close();
-                        QrMeasurementFragment.this.getActivity().runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                            }
-                        });
                         Log.v(TAG, "Image acquired...");
                     }
                 }
             }, mBackgroundHandler);
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-//            captureRequestBuilder.addTarget(surface);
             captureRequestBuilder.addTarget(readerSurface);
             cameraDevice.createCaptureSession(Arrays.asList(readerSurface), new CameraCaptureSession.StateCallback(){
                 @Override
@@ -197,7 +218,7 @@ public class QrMeasurementFragment extends Fragment {
                 public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
                     Toast.makeText(getActivity(), "Configuration change", Toast.LENGTH_SHORT).show();
                 }
-            }, null);
+            }, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -214,7 +235,19 @@ public class QrMeasurementFragment extends Fragment {
         ByteBuffer ybuffer = yplane.getBuffer(); // we're only interested in the Y plane
         byte [] org = new byte[span * height];
         ybuffer.get(org, 0, span * height);
-        ImageProcessor.processImage(org, width, height, span);
+        int fishWidth = ImageProcessor.processImage(org, width, height, span, new Surface(textureView.getSurfaceTexture()));
+        if (fishWidth > 0) {
+            ContentResolver resolver = getActivity().getContentResolver();
+            ContentValues values = new ContentValues();
+            values.put(CatchesTable.COL_LENGTH, fishWidth);
+            resolver.update(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(selectedCatchId)),
+                    values, null, null);
+            try {
+                stateManager.go(State.EDIT_CATCH, new JSONObject("{id: "+selectedCatchId+"}"), true);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
 
         ybuffer.clear();
         ybuffer.put(org);
@@ -246,6 +279,8 @@ public class QrMeasurementFragment extends Fragment {
             Log.e(TAG, "updatePreview error, return");
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+        captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+        captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
         try {
             cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
         } catch (CameraAccessException e) {
@@ -289,12 +324,16 @@ public class QrMeasurementFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
+        closeCamera();
         stopBackgroundThread();
     }
 
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
+
+        if (context instanceof IStateManager)
+            stateManager = (IStateManager)context;
     }
 
     @Override

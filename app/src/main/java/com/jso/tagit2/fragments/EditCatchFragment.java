@@ -150,6 +150,8 @@ public class EditCatchFragment extends Fragment {
             return;
         final ContentResolver resolver = context.getContentResolver();
         final Catch currentCatch = prefs.getCurrentCatch();
+        if (currentCatch == null)
+            return;
 
         browseButton = (ImageButton) v.findViewById(R.id.btn_browse_image);
         browseButton.setOnClickListener(new View.OnClickListener() {

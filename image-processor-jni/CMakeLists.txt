@@ -17,8 +17,7 @@ add_library( # Specifies the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             src/main/cpp/image-processor.cpp
-             src/main/cpp/imageprocessor.c)
+             src/main/cpp/imageprocessor.cpp)
 
 include_directories(src/main/cpp/include)
 
@@ -30,9 +29,12 @@ find_library( # Defines the name of the path variable that stores the
               # CMake needs to locate.
               log )
 
+find_library(android android)
+
 # Links your native library against one or more other native libraries.
 target_link_libraries( # Specifies the target library.
                      image-processor-jni
 
                      # Links the log library to the target library.
-                     ${log-lib} )
+                     ${log-lib}
+                      ${android})

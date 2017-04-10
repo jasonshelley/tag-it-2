@@ -5,26 +5,27 @@
 #ifndef TAGIT2_STRUCTS_H
 #define TAGIT2_STRUCTS_H
 
-struct BLOCK {
+typedef struct S_BLOCK {
     int start;
     int end;
-};
+} BLOCK;
 
-struct POINT {
+typedef struct S_POINT {
     int x;
     int y;
-};
+} POINT;
 
-struct CENTRE {
-    struct POINT start;
-    struct POINT end;
-};
+typedef struct S_CENTRE {
+    POINT start;
+    POINT end;
+} CENTRE;
 
-struct MINMAX {
+typedef struct S_MINMAX {
     int min;
     int max;
-};
+} MINMAX;
 
-struct MINMAX calcMinMax(int startx, int starty, jbyte* input, int dx, int dy);
+int blockWidth(BLOCK b);
+POINT centreMid(CENTRE c);
 
 #endif //TAGIT2_STRUCTS_H

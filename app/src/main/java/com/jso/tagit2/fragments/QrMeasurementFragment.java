@@ -1,8 +1,10 @@
 package com.jso.tagit2.fragments;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.pm.ActivityInfo;
 import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.media.ImageWriter;
@@ -27,6 +29,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -36,9 +39,10 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.jso.tagit2.MainActivity;
 import com.jso.tagit2.R;
 import com.jso.tagit2.database.CatchesTable;
 import com.jso.tagit2.imageprocessing.ImageProcessor;
@@ -62,7 +66,7 @@ public class QrMeasurementFragment extends Fragment {
 
     private Button takePictureButton;
     private TextureView textureView;
-    ImageView imageView;
+    private TextView textViewMeasurement;
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     static {
         ORIENTATIONS.append(Surface.ROTATION_0, 90);
@@ -84,6 +88,7 @@ public class QrMeasurementFragment extends Fragment {
     private HandlerThread mBackgroundThread;
     Bundle args;
     long selectedCatchId;
+    int currentMeasurement = 0;
 
     public QrMeasurementFragment() {
     }
@@ -118,9 +123,34 @@ public class QrMeasurementFragment extends Fragment {
         textureView = (TextureView) v.findViewById(R.id.camera_preview);
         assert textureView != null;
         textureView.setSurfaceTextureListener(textureListener);
-        imageView =  (ImageView)v.findViewById(R.id.image_view);
+        textureView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ContentResolver resolver = getActivity().getContentResolver();
+                ContentValues values = new ContentValues();
+                values.put(CatchesTable.COL_LENGTH, currentMeasurement);
+                resolver.update(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(selectedCatchId)),
+                        values, null, null);
+                try {
+                    stateManager.go(State.EDIT_CATCH, new JSONObject("{id: "+selectedCatchId+"}"), true);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        textViewMeasurement = (TextView)v.findViewById(R.id.text_measurement);
 
         return v;
+    }
+
+    @Override
+    public void setUserVisibleHint(boolean isVisibleToUser) {
+        super.setUserVisibleHint(isVisibleToUser);
+        if(isVisibleToUser) {
+            Activity a = getActivity();
+            if(a != null) a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
     }
 
     private void startBackgroundThread() {
@@ -136,7 +166,6 @@ public class QrMeasurementFragment extends Fragment {
     TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-            //open your camera here
             openCamera();
         }
         @Override
@@ -224,6 +253,9 @@ public class QrMeasurementFragment extends Fragment {
         }
     }
 
+    int [] avgbuf = new int[1000];
+    int avgpos;
+
     private void processImage(Image img) {
         Image.Plane[] planes = img.getPlanes();
         int width = img.getWidth();
@@ -235,22 +267,9 @@ public class QrMeasurementFragment extends Fragment {
         ByteBuffer ybuffer = yplane.getBuffer(); // we're only interested in the Y plane
         byte [] org = new byte[span * height];
         ybuffer.get(org, 0, span * height);
-        int fishWidth = ImageProcessor.processImage(org, width, height, span, new Surface(textureView.getSurfaceTexture()));
-        if (fishWidth > 0) {
-            ContentResolver resolver = getActivity().getContentResolver();
-            ContentValues values = new ContentValues();
-            values.put(CatchesTable.COL_LENGTH, fishWidth);
-            resolver.update(Uri.withAppendedPath(TagIt2Provider.Contract.CATCHES_URI, String.valueOf(selectedCatchId)),
-                    values, null, null);
-            try {
-                stateManager.go(State.EDIT_CATCH, new JSONObject("{id: "+selectedCatchId+"}"), true);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-
-        ybuffer.clear();
-        ybuffer.put(org);
+        int measurement = ImageProcessor.processImage(org, width, height, span, new Surface(textureView.getSurfaceTexture()));
+        if (measurement != 0)
+            currentMeasurement = measurement;
     }
 
     private void openCamera() {
@@ -279,8 +298,9 @@ public class QrMeasurementFragment extends Fragment {
             Log.e(TAG, "updatePreview error, return");
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-        captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-        captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
+        captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
+        captureRequestBuilder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, CameraMetadata.CONTROL_AE_MODE_ON);
+//        captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
         try {
             cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
         } catch (CameraAccessException e) {
@@ -305,6 +325,9 @@ public class QrMeasurementFragment extends Fragment {
             if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
                 // close the app
                 Toast.makeText(QrMeasurementFragment.this.getActivity(), "Sorry!!!, you can't use this app without granting permission", Toast.LENGTH_LONG).show();
+            } else {
+                if (textureView.isAvailable())
+                    openCamera();
             }
         }
     }
@@ -332,12 +355,20 @@ public class QrMeasurementFragment extends Fragment {
     public void onAttach(Context context) {
         super.onAttach(context);
 
+        if (context instanceof MainActivity) {
+            MainActivity a = (MainActivity)context;
+            a.getSupportActionBar().hide();
+
+        }
+
         if (context instanceof IStateManager)
             stateManager = (IStateManager)context;
     }
 
     @Override
-    public void onDetach() {
+    public void onDetach()
+    {
+        ((MainActivity)getActivity()).getSupportActionBar().show();
         super.onDetach();
     }
 

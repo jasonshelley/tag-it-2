@@ -21,6 +21,14 @@
           }
         },
         {
+          "client_id": "813651815469-ank4ir4gs5nfebs8hmc3mhfoh9b7ubnr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jso.tagit2",
+            "certificate_hash": "9D557B3C546096F5879B301BE8EA40631C8EE5F4"
+          }
+        },
+        {
           "client_id": "813651815469-ov9i00icnoatto84033ct4s07cakt828.apps.googleusercontent.com",
           "client_type": 3
         }

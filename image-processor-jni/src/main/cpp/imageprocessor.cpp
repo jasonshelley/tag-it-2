@@ -34,7 +34,6 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
     }
 
     long millis = now_ms() - starttime;
-    __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "Got native window locked %ld", millis);
 
     double fishwidth = 0;
 
@@ -45,16 +44,16 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
 
     uint8_t *buffer = reinterpret_cast<uint8_t *>(env->GetByteArrayElements(buffer_, 0));
     int length = env->GetArrayLength(buffer_);
-    uint8_t *start = buffer;
-    uint8_t *end = start + span * height;
     uint8_t *outdata = (uint8_t *)winbuf.bits;
 
-    int16_t * gradient = (int16_t *)malloc(length * sizeof(int16_t));
-    int16_t * gradienth = (int16_t *)malloc(length * sizeof(int16_t));
-    int16_t * gradientv = (int16_t *)malloc(length * sizeof(int16_t));
+    int intBufferSize = length * sizeof(int16_t);
+    int16_t * gradienth = (int16_t *)malloc(intBufferSize);
+    int16_t * gradientv = (int16_t *)malloc(intBufferSize);
+    int16_t * peakh = (int16_t *)malloc(intBufferSize);
+    int16_t * peakv = (int16_t *)malloc(intBufferSize);
+    uint8_t * blurred = (uint8_t *)malloc(length);
 
     millis = now_ms() - starttime;
-    __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "allocated buffers %ld", millis);
 
     // let's segment our image into 16ths and do our calcs within each block
     double dx = width;
@@ -63,76 +62,88 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
     MINMAX mm;
     float threshold;
     int transMatrix[] = {-1, -2, 0, 2, 1};
+    double blurMatrix[] = {0.06136,	0.24477, 0.38774, 0.24477, 0.06136};
     int offset = 2;
     int tp = 0; // transMatrixPos
 
     // let's have a go at edge detection rather than binarization
     int x, y;
-    int16_t *pout = gradient + offset;
-    int res, m;
+    int16_t *ph, *pv;
+    int resh, resv, m;
 
-    int gthresh = 64;
+    int gthresh = 48;
 
     uint8_t *pin;
 
-    // horizontal scan
+    // blur
+    // horizontally
+    for (y = offset; y < height - offset; y++) {
+        for (x = offset; x < width - offset; x++) {
+            double res = 0;
+            for (m = -2; m <= 2; m++) {
+                res += buffer[y * span + x + m] * blurMatrix[m+2];
+            }
+            blurred[y * span + x] = res;
+        }
+    }
+    // then vertically
+    for (x = offset; x < width - offset; x++) {
+        for (y = offset; y < height - offset; y++) {
+            double res = 0;
+            for (m = -2; m <= 2; m++) {
+                res += blurred[(y + m) * span + x] * blurMatrix[m+2];
+            }
+            blurred[y * span + x] = res;
+        }
+    }
+
+            // horizontal scan
     // detect gradients
     for (y = offset; y < height - offset; y++) {
         for (x = offset; x < width - offset; x++) {
-            pin = start + y * span + x;
-            pout = gradient + y * span + x;
-            res = 0;
-            for (m = -2; m <= 2; m++)
-                res += *(pin + m) * transMatrix[m + 2];
-            *pout = res;
+            pin = blurred + y * span + x;
+            ph = gradienth + y * span + x;
+            pv = gradientv + y * span + x;
+            resh = resv = 0;
+            for (m = -2; m <= 2; m++) {
+                resh += *(pin + m) * transMatrix[m + 2];
+                resv += *(pin + m * span) * transMatrix[m + 2];
+            }
+            *ph = resh;
+            *pv = resv;
         }
     }
     // leave only peaks
     int16_t * gin;
     for (y = offset; y < height - offset; y++) {
         for (x = offset; x < width - offset; x++) {
-            gin = gradient + y * span + x;
-            pout = gradienth + y * span + x;
+            // horizontal
+            gin = gradienth + y * span + x;
+            ph = peakh + y * span + x;
             if (*gin >= 0) {
                 if (*gin > *(gin - 1) && *gin > *(gin + 1) && *gin > gthresh)
-                    *pout = 255;
+                    *ph = 255;
                 else
-                    *pout = 0;
+                    *ph = 0;
             } else {
                 if (*gin < *(gin - 1) && *gin < *(gin + 1) && *gin < -gthresh)
-                    *pout = -255;
+                    *ph = -255;
                 else
-                    *pout = 0;
+                    *ph = 0;
             }
-        }
-    }
-    // vertical scan
-    // detect gradients
-    for (x = offset; x < width - offset; x++) {
-        for (y = offset; y < height - offset; y++) {
-            pin = start + y * span + x;
-            pout = gradient + y * span + x;
-            res = 0;
-            for (m = -2; m <= 2; m++)
-                res += *(pin + m * span) * transMatrix[m + 2];
-            *pout = res;
-        }
-    }
-    // leave only peaks
-    for (x = offset; x < width - offset; x++) {
-        for (y = offset; y < height - offset; y++) {
-            gin = gradient + y * span + x;
-            pout = gradientv + y * span + x;
+            // vertical
+            gin = gradientv + y * span + x;
+            pv = peakv + y * span + x;
             if (*gin >= 0) {
                 if (*gin > *(gin - span) && *gin > *(gin + span) && *gin > gthresh)
-                    *pout = 255;
+                    *pv = 255;
                 else
-                    *pout = 0;
+                    *pv = 0;
             } else {
                 if (*gin < *(gin - span) && *gin < *(gin + span) && *gin < -gthresh)
-                    *pout = -255;
+                    *pv = -255;
                 else
-                    *pout = 0;
+                    *pv = 0;
             }
         }
     }
@@ -142,21 +153,21 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
 
     uint8_t * o, * b, *bend;
     b = buffer;
-    int16_t  *gh = gradienth;
-    int16_t  *gv = gradientv;
+    int16_t  *gh = peakh;
+    int16_t  *gv = peakv;
     o = outdata;
     int16_t * gend = gh + height * span;
     while (gh < gend) {
-        if (*gh == 0 || *gv == 0) {
-            *o = o[1] = o[2] = o[3] = 0;
-        } else if (*gh == 255 || *gv == 255) {
+        if (*gh == 255 || *gv == 255) {
             *o = 255;
             o[1] = o[2] = 0;
             o[3] = 255;
-        } else {
+        } else if (*gh == -255 || *gv == -255){
             o[1] = 255;
             o[0] = o[2] = 0;
             o[3] = 255;
+        } else {
+            *o = o[1] = o[2] = o[3] = *b;
         }
 
         b++;
@@ -165,7 +176,6 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
         o += 4;
     }
     millis = now_ms() - starttime;
-    __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "drawn gradients %ld", millis);
 
     // so now we have our binary image, let's search for the location patterns
     // the magic ration is 1,1,3,1,1 starting with dark
@@ -177,7 +187,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
 
     int count = 0;
     int countpos = 0;
-    int16_t * startline = gradienth;
+    int16_t * startline = peakh;
     int16_t * gcur;
     int16_t prev = 0;
     int templates[] = {1, 2, 4, 5};
@@ -246,7 +256,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
         startline += span;
     }
     // vertical search
-    int16_t * startcol = gradientv;
+    int16_t * startcol = peakv;
     POINT* cy = new POINT[1000];
     int cypos = 0;
     prev = 0;
@@ -311,7 +321,6 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
     }
 
     millis = now_ms() - starttime;
-    __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "found blocks %ld", millis);
 
     // now we (hopefully) have a bunch of centre points, let's figure out where the centres actually are
     // to find lines, we'll take all the points that are within 5 pixels of each other to be as generous as possible
@@ -353,6 +362,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
 
                 int midx = centreMid(curCentre).x;
                 int midy = centreMid(curCentre).y;
+                dx = dy = (curCentre.end.y - curCentre.start.y) / 2;    // scan the square
 
                 // we now have a vertical line indicating a center
                 // let's see if there's a y centre somewhere around the middle of our x
@@ -402,6 +412,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
             acxpos++;
             int midx = centreMid(curCentre).x;
             int midy = centreMid(curCentre).y;
+            dx = dy = (curCentre.end.y - curCentre.start.y) / 2;    // scan the square
 
             // we now have a vertical line indicating a center
             // let's see if there's a y centre somewhere around the middle of our x
@@ -445,6 +456,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
             finalCentres[fcpos++] = locationCentres[lc];
     }
 
+    __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "centres count: %d", fcpos);
     if (fcpos == 3) {
         // alrighty then... if we've located 3 location centres, let's calculate the distortion
 
@@ -497,18 +509,24 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
             }
         }
 
+        // the angle of to topleft -> right line from horizontal
         double alpha = tan((double)(finalCentres[right].y - finalCentres[topleft].y)/(finalCentres[right].x - finalCentres[topleft].x));
-        double beta = tan((double)(finalCentres[bottom].x - finalCentres[topleft].x)/(finalCentres[bottom].y - finalCentres[topleft].y));
+        // after correcting bottom point for rotation, the angle between the top -> bottom line and vertical
+        dx = finalCentres[bottom].x - finalCentres[topleft].x;
+        dy = finalCentres[bottom].y - finalCentres[topleft].y;
+        double rotx = dx * cos(-alpha) - dy * sin(-alpha);
+        double roty = dx * sin(-alpha) + dy * cos(-alpha);
+        double beta = tan(rotx/roty);
 
         for (x = finalCentres[topleft].x; x < finalCentres[right].x; x++) {
-            y = finalCentres[topleft].y + (int)(atan(alpha)* (x - finalCentres[topleft].x));
+            y = finalCentres[topleft].y + (int)(asin(alpha)* (x - finalCentres[topleft].x));
             *(outdata + y * outstride + x * 4) = 0;
             *(outdata + y * outstride + x * 4 + 1) = 255;
             *(outdata + y * outstride + x * 4 + 2) = 255;
             *(outdata + y * outstride + x * 4 + 3) = 255;
         }
         for (y = finalCentres[topleft].y; y < finalCentres[bottom].y; y++) {
-            x = finalCentres[topleft].x + (int)(atan(beta)* (y - finalCentres[topleft].y));
+            x = finalCentres[topleft].x + (int)(asin(beta)* (y - finalCentres[topleft].y));
             *(outdata + y * outstride + x * 4) = 255;
             *(outdata + y * outstride + x * 4 + 1) = 0;
             *(outdata + y * outstride + x * 4 + 2) = 255;
@@ -517,7 +535,55 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
 
         // looking good so far
         // now let's look for the fish
-        
+
+        // let's draw a damn grid so we can see if our transform is actually working
+        double boxwidth = finalCentres[right].x - finalCentres[topleft].x;
+        double sinage = sin(beta);
+
+        for (x = finalCentres[topleft].x; x < finalCentres[right].x; x += 50) {
+            for (y = finalCentres[topleft].y; y < finalCentres[bottom].y; y++) {
+                int dx = (x - finalCentres[topleft].x);
+                int dy = (y - finalCentres[topleft].y);
+                // rotate with alpha, scale with beta
+                int tx = dy * sinage;
+                double scalex = (boxwidth - 2 * tx) / boxwidth;
+                dx = dx * scalex + tx;
+                int transx = finalCentres[topleft].x + dx * cos(alpha) - dy * sin(alpha);
+                int transy = finalCentres[topleft].y + dx * sin(alpha) + dy * cos(alpha);
+                if (transx >= width) transx = width - 1;
+                if (transy >= height) transy = height - 1;
+                if (transx < 0) transx = 0;
+                if (transy < 0) transy = 0;
+
+                outdata[transy * outstride + transx * 4 + 0] = 255;
+                outdata[transy * outstride + transx * 4 + 1] = 0;
+                outdata[transy * outstride + transx * 4 + 2] = 0;
+                outdata[transy * outstride + transx * 4 + 3] = 255;
+            }
+        }
+
+        for (y = finalCentres[topleft].y; y < finalCentres[bottom].y; y+= 50) {
+            for (x = finalCentres[topleft].x; x < finalCentres[right].x; x++) {
+                int dx = (x - finalCentres[topleft].x);
+                int dy = (y - finalCentres[topleft].y);
+                int tx = dy * sinage;
+                double scalex = (boxwidth - 2 * tx) / boxwidth;
+                dx = dx * scalex + tx;
+                int transx = finalCentres[topleft].x + dx * cos(alpha) - dy * sin(alpha);
+                int transy = finalCentres[topleft].y + dx * sin(alpha) + dy * cos(alpha);
+
+                if (transx >= width) transx = width - 1;
+                if (transy >= height) transy = height - 1;
+                if (transx < 0) transx = 0;
+                if (transy < 0) transy = 0;
+
+                outdata[transy * outstride + transx * 4 + 0] = 255;
+                outdata[transy * outstride + transx * 4 + 1] = 0;
+                outdata[transy * outstride + transx * 4 + 2] = 0;
+                outdata[transy * outstride + transx * 4 + 3] = 255;
+            }
+        }
+
         // first attempt - scan vertically
 //        threshold = (int) (mm.min + (mm.max - mm.min) * 3.0 / 4.0); // emphasize the dark for finding the fish
         int minheight = 5; // a column will be marked as crossed if there is a minimum of <minheight> dark pixels
@@ -531,6 +597,11 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
             for (y = finalCentres[topleft].y; y < finalCentres[bottom].y; y++) {  // 50 for the location markers
                 int dx = (x - finalCentres[topleft].x);
                 int dy = (y - finalCentres[topleft].y);
+
+                int tx = dy * sinage;
+                double scalex = (boxwidth - 2 * tx) / boxwidth;
+                dx = dx * scalex + tx;
+
                 int transx = finalCentres[topleft].x + dx * cos(alpha) - dy * sin(alpha);
                 int transy = finalCentres[topleft].y + dx * sin(alpha) + dy * cos(alpha);
                 if (transx >= width) transx = width - 1;
@@ -538,7 +609,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
                 if (transx < 0) transx = 0;
                 if (transy < 0) transy = 0;
 
-                if (gradientv[transy * span + transx] == 0) {
+                if (peakv[transy * span + transx] == 0) {
                     crossingheight++;
                 } else {
                     if (crossingheight > minheight) {
@@ -551,7 +622,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
                     }
                     crossingheight = 0;
                 }
-                if (gradienth[transy * span + transx] == -255) {
+                if (peakh[transy * span + transx] == -255) {
                     if (y < firsty || firsty == 0)
                         firsty = y;
                 }
@@ -560,6 +631,11 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
             for (y = finalCentres[bottom].y; y > finalCentres[topleft].y; y--) {
                 int dx = (x - finalCentres[topleft].x);
                 int dy = (y - finalCentres[topleft].y);
+
+                int tx = dy * sinage;
+                double scalex = (boxwidth - 2 * tx) / boxwidth;
+                dx = dx * scalex + tx;
+
                 int transx = finalCentres[topleft].x + dx * cos(alpha) - dy * sin(alpha);
                 int transy = finalCentres[topleft].y + dx * sin(alpha) + dy * cos(alpha);
                 if (transx >= width) transx = width - 1;
@@ -567,7 +643,7 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
                 if (transx < 0) transx = 0;
                 if (transy < 0) transy = 0;
 
-                if (gradienth[transy * span + transx] == 255) {
+                if (peakh[transy * span + transx] == 255) {
                     if (y > lasty)
                         lasty = y;
                     break;
@@ -578,46 +654,69 @@ Java_com_jso_tagit2_imageprocessing_ImageProcessor_processImage(JNIEnv *env, job
         firsty -= crossingheight;
         lasty += crossingheight;
 
-        for (x = firstx; x <= lastx; x++) {
-            for (y = firsty; y < lasty; y++) {
-                int dx = (x - firstx);
-                int dy = (y - firsty);
-                int transx = firstx + dx * cos(alpha) - dy * sin(alpha);
-                int transy = firsty + dx * sin(alpha) + dy * cos(alpha);
-                if (transx >= width) transx = width - 1;
-                if (transy >= height) transy = height - 1;
-                if (transx < 0) transx = 0;
-                if (transy < 0) transy = 0;
-
-                outdata[transy * outstride + transx * 4] = 255;
-                outdata[transy * outstride + transx * 4 + 3] = 255;
-
-                outdata[transy * outstride + transx * 4 + 1] = *(buffer + y * span + x);
-                outdata[transy * outstride + transx * 4 + 2] = *(buffer + y * span + x);
-            }
-        }
+        double framewidthmm = 228;
+        double pixelspermm = (finalCentres[right].x - finalCentres[topleft].x) / framewidthmm;
 
         int lengthpx = lastx - firstx;
         int framewidth = finalCentres[right].x - finalCentres[topleft].x;
         double fraction = (double)lengthpx / framewidth;
 
-        double framewidthmm = 253;
         fishwidth = fraction * framewidthmm;
+        double fishwidthcm = fishwidth / 10.0 + 0.5; // rounded, in cm
 
-        __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "fish length: %.0fcm", fishwidth / 10.0);
+        POINT pivot = finalCentres[topleft];
+        for (int cm = 0; cm <= fishwidthcm; cm++) {
+            x = firstx + (cm * 10.0 * pixelspermm);
+            int bottomy = firsty + (lasty - firsty) / 4;
+            if (cm % 10 == 0)
+                bottomy = lasty;
+            else if (cm % 5 == 0)
+                bottomy = firsty + (lasty - firsty) / 2;
+            for (y = firsty; y < bottomy; y++) {
+                int dx = (x - pivot.x);
+                int dy = (y - pivot.y);
+
+                int tx = dy * sinage;
+                double scalex = (boxwidth - 2 * tx) / boxwidth;
+                dx = dx * scalex + tx;
+
+                int transx = pivot.x + dx * cos(alpha) - dy * sin(alpha);
+                int transy = pivot.y + dx * sin(alpha) + dy * cos(alpha);
+                if (transx >= width) transx = width - 1;
+                if (transy >= height) transy = height - 1;
+                if (transx < 0) transx = 0;
+                if (transy < 0) transy = 0;
+
+                outdata[transy * outstride + transx * 4 + 1] = 255;
+                outdata[transy * outstride + transx * 4 + 3] = 255;
+                outdata[transy * outstride + transx * 4 + 0] = *(buffer + y * span + x);
+                outdata[transy * outstride + transx * 4 + 2] = *(buffer + y * span + x);
+
+                // two pixels wide
+                transx++;
+                outdata[transy * outstride + transx * 4 + 1] = 255;
+                outdata[transy * outstride + transx * 4 + 3] = 255;
+                outdata[transy * outstride + transx * 4 + 0] = *(buffer + y * span + x);
+                outdata[transy * outstride + transx * 4 + 2] = *(buffer + y * span + x);
+            }
+        }
+
+        __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "fish length: %.1fcm", fishwidth / 10.0);
     }
     millis = now_ms() - starttime;
     __android_log_print(ANDROID_LOG_DEBUG, "FishMeasurement", "done %ld", millis);
 
 
-    free(gradient);
     free(gradienth);
     free(gradientv);
+    free(peakh);
+    free(peakv);
+    free(blurred);
 
     ANativeWindow_unlockAndPost(win);
     ANativeWindow_release(win);
 
-    return (int)(fishwidth / 10.0);
+    return (int)(fishwidth / 10.0 + 0.5);
 }
 
 MINMAX
